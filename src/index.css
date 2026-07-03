@@ -13,6 +13,10 @@ body,
 }
 
 /* Thin scrollbars for the sidebar */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent;
+}
 .scroll-thin::-webkit-scrollbar {
   width: 8px;
 }
@@ -20,6 +24,52 @@ body,
   background: #334155;
   border-radius: 4px;
 }
+.scroll-thin::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
 .scroll-thin::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* Modern range slider (track is painted inline via a gradient on the element) */
+.range-input {
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+}
+.range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 3px solid #6366f1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+.range-input::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+.range-input::-moz-range-thumb {
+  height: 14px;
+  width: 14px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 3px solid #6366f1;
+  cursor: pointer;
+}
+.range-input::-moz-range-track {
+  background: transparent;
+}
+
+/* Hide number input spinners for a cleaner look */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
 }

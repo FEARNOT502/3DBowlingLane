@@ -1,11 +1,13 @@
 import { CENTER_BOARD, BOARD_COUNT } from './laneConstants.js';
 
-// Kegel / CATS board notation uses distance from the centre board.
-//   "2L"  -> 2 boards left of centre
-//   "2R"  -> 2 boards right of centre
+// Kegel / FLEX board notation counts boards in from EACH gutter, not from the
+// centre board:
+//   "4L"  -> 4th board from the left gutter  = board 4
+//   "4R"  -> 4th board from the right gutter = board 36 (BOARD_COUNT + 1 - 4)
 //   "20"  -> absolute board number / centre
-// We map onto absolute board numbers 1..39 (board 20 = centre) so that the
-// layout is symmetric around the middle of the lane.
+// So "4L-4R" is a WIDE span (boards 4..36) and "14L-15R" a narrow one (14..25).
+// The sheet's CROSSED column confirms this: CROSSED = LOADS × boards covered
+// (e.g. 3 loads × 33 boards for 4L-4R = 99).
 export function boardFromNotation(raw) {
   if (raw == null) return null;
   const token = String(raw).trim().toUpperCase();
@@ -18,9 +20,10 @@ export function boardFromNotation(raw) {
   const side = match[2];
 
   let board;
-  if (side === 'L') board = CENTER_BOARD - value;
-  else if (side === 'R') board = CENTER_BOARD + value;
-  else board = value; // absolute board number (or centre with no suffix)
+  if (side === 'L') board = value;
+  else if (side === 'R') board = BOARD_COUNT + 1 - value;
+  else if (side === 'C') board = CENTER_BOARD;
+  else board = value; // absolute board number
 
   return clampBoard(board);
 }
@@ -30,10 +33,10 @@ export function clampBoard(board) {
 }
 
 // Human-readable label for an absolute board number (used in charts/legends).
+// Mirrors the sheet notation: boards count in from each gutter.
 export function boardLabel(board) {
-  const delta = board - CENTER_BOARD;
-  if (delta === 0) return '20';
-  return delta < 0 ? `${Math.abs(delta)}L` : `${delta}R`;
+  if (board === CENTER_BOARD) return '20';
+  return board < CENTER_BOARD ? `${board}L` : `${BOARD_COUNT + 1 - board}R`;
 }
 
 // Inclusive board span [min, max] covered by a START->STOP pair.

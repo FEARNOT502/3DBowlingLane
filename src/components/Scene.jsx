@@ -1,13 +1,70 @@
-import React, { Suspense } from 'react';
-import { Canvas } from '@react-three/fiber';
+import React, { Suspense, useEffect, useRef } from 'react';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
+import * as THREE from 'three';
 import Lane from './Lane.jsx';
+
+// WASD / QE panning on top of OrbitControls. W/S move along the view direction
+// (projected onto the lane), A/D strafe, Q/E (and Space/Shift) raise/lower.
+function WasdControls() {
+  const camera = useThree((s) => s.camera);
+  const controls = useThree((s) => s.controls);
+  const keys = useRef({});
+
+  useEffect(() => {
+    const typing = () => ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+    const down = (e) => {
+      if (typing()) return;
+      keys.current[e.code] = true;
+    };
+    const up = (e) => {
+      keys.current[e.code] = false;
+    };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+    };
+  }, []);
+
+  useFrame((_, delta) => {
+    if (!controls) return;
+    const k = keys.current;
+    const dt = Math.min(delta, 0.05);
+    const speed = 26 * dt;
+
+    const fwd = new THREE.Vector3();
+    camera.getWorldDirection(fwd);
+    fwd.y = 0;
+    if (fwd.lengthSq() === 0) return;
+    fwd.normalize();
+    const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+
+    const move = new THREE.Vector3();
+    if (k.KeyW) move.add(fwd);
+    if (k.KeyS) move.sub(fwd);
+    if (k.KeyD) move.add(right);
+    if (k.KeyA) move.sub(right);
+    if (k.KeyE || k.Space) move.y += 1;
+    if (k.KeyQ || k.ShiftLeft || k.ShiftRight) move.y -= 1;
+
+    if (move.lengthSq() > 0) {
+      move.normalize().multiplyScalar(speed);
+      camera.position.add(move);
+      controls.target.add(move);
+      controls.update();
+    }
+  });
+
+  return null;
+}
 
 export default function Scene(props) {
   return (
     <Canvas
       dpr={[1, 2]}
-      camera={{ position: [11, 15, 42], fov: 40, near: 0.1, far: 600 }}
+      camera={{ position: [0, 17, 40], fov: 40, near: 0.1, far: 600 }}
       gl={{ antialias: true }}
     >
       <color attach="background" args={['#070b15']} />
@@ -40,6 +97,7 @@ export default function Scene(props) {
         maxPolarAngle={Math.PI / 2 - 0.02}
         target={[0, 0, 2]}
       />
+      <WasdControls />
     </Canvas>
   );
 }

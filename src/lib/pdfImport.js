@@ -6,9 +6,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
 // IMPORTANT: Kegel/FLEX sheets render their pass tables (and the bar chart) as
 // a rasterised IMAGE — only the header is real text. So we:
-//   1. extract whatever text exists  -> metadata (distance, totals, ...)
+//   1. extract whatever text exists  -> metadata + tables (vector PDFs only)
 //   2. render the page to an image   -> shown as an in-app reference
-//   3. optionally OCR that image     -> best-effort table auto-fill (review!)
+// When the tables are an image (the common case), the user converts them with
+// the "AI 가져오기" flow (see lib/aiImport.js) — far more reliable than OCR.
 
 function reconstructLines(items) {
   const rows = [];
@@ -34,6 +35,10 @@ function extractMeta(text, fileName) {
     const m = text.match(re);
     return m ? parseFloat(m[1]) : null;
   };
+  const str = (re) => {
+    const m = text.match(re);
+    return m ? m[1].trim() : null;
+  };
   const name = fileName.replace(/\.pdf$/i, '').trim() || '가져온 패턴';
   return {
     name,
@@ -43,6 +48,13 @@ function extractMeta(text, fileName) {
     forwardTotal: num(/Forward Oil Total\s+([\d.]+)/i) ?? 0,
     reverseTotal: num(/Reverse Oil Total\s+([\d.]+)/i) ?? 0,
     volumeTotal: num(/Volume Oil Total\s+([\d.]+)/i) ?? 0,
+    tankConfig: str(/Tank Configuration\s+([A-Za-z0-9/ ]+?)(?:\s{2,}|$)/i),
+    tankAConditioner: str(/Tank A Conditioner\s+([A-Za-z0-9 ]+?)(?:\s{2,}|$)/i),
+    tankBConditioner: str(/Tank B Conditioner\s+([A-Za-z0-9 ]+?)(?:\s{2,}|$)/i),
+    cleanerMainMix: str(/Cleaner Ratio Main Mix\s+([\d:]+)/i),
+    cleanerBackEndMix: str(/Cleaner Ratio Back End Mix\s+([\d:]+)/i),
+    cleanerBackEndDistance: num(/Cleaner Ratio Back End Distance\s+([\d.]+)/i),
+    bufferRpm: str(/Buffer RPM:\s*(.+?)(?:\s{2,}|$)/i),
     conditioner: 'Kegel',
     hasText: /Oil Pattern Distance/i.test(text),
   };
@@ -115,8 +127,7 @@ export async function importPatternFromPdf(file) {
   const fromText = extractTables(lines);
   const trackZones = extractTrackZones(lines);
 
-  // Render page 1 as a reference image (and OCR source). A higher scale gives
-  // OCR real glyph detail to work with instead of an upscaled blur.
+  // Render page 1 as a reference image (also handy to drop into an AI chat).
   const page1 = await pdf.getPage(1);
   const previewCanvas = await renderPageToCanvas(page1, 2.2);
   const pageImage = previewCanvas.toDataURL('image/png');
@@ -130,73 +141,4 @@ export async function importPatternFromPdf(file) {
     // true when the pass tables were already available as real text
     tablesFromText: Boolean(fromText.forwardText || fromText.reverseText),
   };
-}
-
-// Upscales and binarises the sheet image before OCR. The pass tables are small,
-// dense, mostly-numeric rows; Tesseract reads them far more reliably from a
-// high-contrast black-on-white bitmap than from the raw colour render (which
-// also carries the blue heatmap and the bar chart).
-function preprocessForOcr(pageImage) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      // Upscale small sheets so glyphs are tall enough for OCR (~2x, capped).
-      const scale = Math.min(2.5, Math.max(1, 2200 / img.width));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
-      const ctx = canvas.getContext('2d');
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const px = imgData.data;
-      for (let i = 0; i < px.length; i += 4) {
-        // Luminance, then a hard threshold to pure black / white. Coloured
-        // overlays (blue oil, cyan/blue bars) fall on the dark side and become
-        // black blobs that the line filter discards — the numbers stay crisp.
-        const lum = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-        const v = lum > 165 ? 255 : 0;
-        px[i] = v;
-        px[i + 1] = v;
-        px[i + 2] = v;
-        px[i + 3] = 255;
-      }
-      ctx.putImageData(imgData, 0, 0);
-      resolve(canvas);
-    };
-    img.onerror = () => reject(new Error('이미지를 불러오지 못했습니다.'));
-    img.src = pageImage;
-  });
-}
-
-// Best-effort OCR of the sheet image to recover the pass tables. Lazy-loads
-// tesseract.js so it only downloads when the user opts in.
-export async function ocrPatternTables(pageImage, onProgress) {
-  const { createWorker, PSM } = await import('tesseract.js');
-  const source = await preprocessForOcr(pageImage);
-  const worker = await createWorker('eng', undefined, {
-    logger: (m) => {
-      if (m.status === 'recognizing text' && onProgress) onProgress(m.progress);
-    },
-  });
-  try {
-    // The pass rows only contain digits, the board-side letters L/R/C, the tank
-    // letter A/B, dots and minus signs. Whitelisting them keeps Tesseract from
-    // "creatively" turning numbers into prose, and treating the sheet as a
-    // uniform block (PSM 6) preserves the row structure.
-    await worker.setParameters({
-      tessedit_pageseg_mode: PSM ? PSM.SINGLE_BLOCK : '6',
-      tessedit_char_whitelist: '0123456789LRCAB.- ',
-      preserve_interword_spaces: '1',
-    });
-    const { data } = await worker.recognize(source);
-    const lines = data.text.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
-    const { forwardText, reverseText } = extractTables(lines);
-    const trackZones = extractTrackZones(lines);
-    return { forwardText, reverseText, trackZones };
-  } finally {
-    await worker.terminate();
-  }
 }
