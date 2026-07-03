@@ -6,13 +6,13 @@ export default function Legend({ layer }) {
     layer === 'forward' ? 'Forward' : layer === 'reverse' ? 'Reverse' : 'Combined';
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between text-[11px] text-slate-400">
+      <div className="mb-1 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
         <span>{label} 오일 두께</span>
         <span>얇음 → 두꺼움</span>
       </div>
       <div
-        className="h-3 w-full rounded"
-        style={{ background: layer === 'none' ? '#1e293b' : rampCss(layer) }}
+        className="h-3 w-full rounded ring-1 ring-slate-200 dark:ring-white/10"
+        style={{ background: layer === 'none' ? '#94a3b8' : rampCss(layer) }}
       />
     </div>
   );

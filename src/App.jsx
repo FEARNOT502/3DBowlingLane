@@ -1,6 +1,8 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import Scene from './components/Scene.jsx';
-import Sidebar from './components/Sidebar.jsx';
+import ControlPanel, { PanelTabBar } from './components/ControlPanel.jsx';
+import BottomSheet, { SHEET_PEEK } from './components/BottomSheet.jsx';
+import Toolbar from './components/Toolbar.jsx';
 import { SAMPLE_PATTERNS, JINSEUNG_A } from './data/samplePatterns.js';
 import { parsePassTable, totalOilMl } from './lib/parsePattern.js';
 import { buildOilModel, selectGrid } from './lib/oilModel.js';
@@ -8,6 +10,7 @@ import { computeStats, boardChartData } from './lib/analysis.js';
 import { importPatternFromPdf } from './lib/pdfImport.js';
 import { parseAiImport } from './lib/aiImport.js';
 import { loadSavedPatterns, savePattern, deletePattern } from './lib/storage.js';
+import { IconSun, IconMoon, LogoMark } from './components/icons.jsx';
 
 function parseTexts(forwardText, reverseText) {
   const forwardPasses = parsePassTable(forwardText, 'forward');
@@ -22,6 +25,58 @@ function parseTexts(forwardText, reverseText) {
       error: total === 0 ? '데이터를 인식하지 못했습니다.' : null,
     },
   };
+}
+
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = (e) => setMatches(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [query]);
+  return matches;
+}
+
+function useTheme() {
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('ui-theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    localStorage.setItem('ui-theme', theme);
+  }, [theme]);
+  return [theme, setTheme];
+}
+
+function ThemeToggle({ theme, setTheme, className = '' }) {
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+      title={theme === 'dark' ? '라이트 모드' : '다크 모드'}
+      className={`grid h-9 w-9 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition-all hover:border-slate-400 active:scale-95 dark:border-white/10 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-white/30 ${className}`}
+    >
+      {theme === 'dark' ? <IconSun size={15} /> : <IconMoon size={15} />}
+    </button>
+  );
+}
+
+function AppHeader({ theme, setTheme }) {
+  return (
+    <div className="flex items-center gap-3 px-5 py-4">
+      <LogoMark size={34} className="shrink-0" />
+      <div className="min-w-0 flex-1">
+        <h1 className="truncate text-[15px] font-bold leading-tight tracking-tight text-slate-900 dark:text-white">
+          Lane Oil Pattern 3D
+        </h1>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400">오일 패턴 시각화 · 분석</p>
+      </div>
+      <ThemeToggle theme={theme} setTheme={setTheme} />
+    </div>
+  );
 }
 
 export default function App() {
@@ -40,6 +95,11 @@ export default function App() {
   const [aiText, setAiText] = useState('');
   const [aiError, setAiError] = useState(null);
   const [saved, setSaved] = useState(() => loadSavedPatterns());
+
+  const [theme, setTheme] = useTheme();
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+  const [tab, setTab] = useState('pattern');
+  const [sheetSnap, setSheetSnap] = useState('peek');
 
   const [view, setView] = useState({
     showForward: true,
@@ -61,6 +121,15 @@ export default function App() {
   const onViewChange = useCallback((field, value) => {
     setView((v) => ({ ...v, [field]: value }));
   }, []);
+
+  // Tab tap on the collapsed mobile sheet should also open it.
+  const onTabChange = useCallback(
+    (id) => {
+      setTab(id);
+      if (!isDesktop) setSheetSnap((s) => (s === 'peek' ? 'half' : s));
+    },
+    [isDesktop]
+  );
 
   const loadSample = useCallback((id) => {
     const p = SAMPLE_PATTERNS.find((s) => s.id === id);
@@ -135,19 +204,22 @@ export default function App() {
     }
   }, [aiText]);
 
-  const onLoadSaved = useCallback((id) => {
-    const p = saved.find((s) => s.id === id);
-    if (!p) return;
-    setImportError(null);
-    setPageImage(null);
-    setImportInfo(null);
-    setActiveId(id);
-    setMeta({ ...p.meta, name: p.name });
-    setTrackZones(p.trackZones || []);
-    setForwardText(p.forwardText);
-    setReverseText(p.reverseText);
-    setApplied(parseTexts(p.forwardText, p.reverseText));
-  }, [saved]);
+  const onLoadSaved = useCallback(
+    (id) => {
+      const p = saved.find((s) => s.id === id);
+      if (!p) return;
+      setImportError(null);
+      setPageImage(null);
+      setImportInfo(null);
+      setActiveId(id);
+      setMeta({ ...p.meta, name: p.name });
+      setTrackZones(p.trackZones || []);
+      setForwardText(p.forwardText);
+      setReverseText(p.reverseText);
+      setApplied(parseTexts(p.forwardText, p.reverseText));
+    },
+    [saved]
+  );
 
   const onDeleteSaved = useCallback((id) => {
     setSaved(deletePattern(id));
@@ -187,45 +259,61 @@ export default function App() {
     [forwardPasses, reversePasses]
   );
 
-  return (
-    <div className="flex h-full w-full bg-slate-950">
-      <Sidebar
-        patterns={SAMPLE_PATTERNS}
-        activeId={activeId}
-        onLoadSample={loadSample}
-        savedPatterns={saved}
-        onLoadSaved={onLoadSaved}
-        onDeleteSaved={onDeleteSaved}
-        onImportPdf={onImportPdf}
-        importing={importing}
-        importError={importError}
-        pageImage={pageImage}
-        importInfo={importInfo}
-        aiText={aiText}
-        onAiTextChange={setAiText}
-        onAiImport={onAiImport}
-        aiError={aiError}
-        meta={meta}
-        onDistanceChange={onDistanceChange}
-        forwardText={forwardText}
-        reverseText={reverseText}
-        onForwardTextChange={setForwardText}
-        onReverseTextChange={setReverseText}
-        onApply={onApply}
-        parseInfo={parseInfo}
-        forwardPasses={forwardPasses}
-        reversePasses={reversePasses}
-        view={view}
-        onViewChange={onViewChange}
-        layer={selected.layer}
-        stats={stats}
-        chartData={chartData}
-        totals={totals}
-        trackZones={trackZones}
-      />
+  const panelProps = {
+    patterns: SAMPLE_PATTERNS,
+    activeId,
+    onLoadSample: loadSample,
+    savedPatterns: saved,
+    onLoadSaved,
+    onDeleteSaved,
+    onImportPdf,
+    importing,
+    importError,
+    pageImage,
+    importInfo,
+    aiText,
+    onAiTextChange: setAiText,
+    onAiImport,
+    aiError,
+    meta,
+    onDistanceChange,
+    forwardText,
+    reverseText,
+    onForwardTextChange: setForwardText,
+    onReverseTextChange: setReverseText,
+    onApply,
+    parseInfo,
+    forwardPasses,
+    reversePasses,
+    view,
+    onViewChange,
+    layer: selected.layer,
+    stats,
+    chartData,
+    totals,
+    trackZones,
+  };
 
-      <main className="relative flex-1">
+  return (
+    <div className="flex h-full w-full bg-[#f4f6fb] dark:bg-slate-950">
+      {/* Desktop sidebar */}
+      {isDesktop && (
+        <aside className="flex h-full w-[372px] shrink-0 flex-col border-r border-slate-200/80 bg-slate-50 dark:border-white/10 dark:bg-slate-950">
+          <div className="shrink-0">
+            <AppHeader theme={theme} setTheme={setTheme} />
+            <div className="px-4 pb-1">
+              <PanelTabBar tab={tab} onTabChange={onTabChange} />
+            </div>
+          </div>
+          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
+            <ControlPanel tab={tab} {...panelProps} />
+          </div>
+        </aside>
+      )}
+
+      <main className="relative min-w-0 flex-1">
         <Scene
+          theme={theme}
           grid={selected.grid}
           max={selected.max}
           layer={selected.layer}
@@ -240,37 +328,57 @@ export default function App() {
           oilMode={view.oilMode}
         />
 
-        <div className="pointer-events-none absolute left-5 top-5 rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 backdrop-blur-md">
-          <div className="text-sm font-semibold text-white">{meta.name || '패턴'}</div>
-          <div className="mt-0.5 text-[11px] text-slate-400">
-            {meta.distance}ft · {totals.combinedMl.toFixed(1)}mL
+        {/* Pattern summary card — compact infographic strip */}
+        <div className="pointer-events-none absolute left-4 top-4 max-w-[70vw] rounded-lg border border-slate-200 bg-white/90 px-4 py-2.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-900/80 lg:left-5 lg:top-5">
+          <div className="truncate text-[13px] font-bold tracking-tight text-slate-900 dark:text-white">
+            {meta.name || '패턴'}
           </div>
-          <div className="mt-1.5 text-[10px] text-slate-500">
+          <div className="mt-1 flex items-baseline gap-3">
+            <span className="flex items-baseline gap-1">
+              <span className="font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-sky-300">
+                {meta.distance}
+              </span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500">ft</span>
+            </span>
+            <span className="h-3 w-px bg-slate-200 dark:bg-white/10" />
+            <span className="flex items-baseline gap-1">
+              <span className="font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-sky-300">
+                {totals.combinedMl.toFixed(1)}
+              </span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500">mL</span>
+            </span>
+          </div>
+          <div className="mt-1 hidden text-[10px] text-slate-400 dark:text-slate-500 sm:block">
             드래그 회전 · 휠 줌 · 우클릭 이동
           </div>
         </div>
 
-        {/* 오일 표시 모드 토글: 패턴표 그래픽 vs PBA 실제 레인 */}
-        <div className="absolute right-5 top-5 flex overflow-hidden rounded-xl border border-white/10 bg-slate-900/60 text-[11px] backdrop-blur-md">
-          {[
-            { id: 'sheet', label: '패턴표' },
-            { id: 'realistic', label: '실제 레인' },
-          ].map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => onViewChange('oilMode', m.id)}
-              className={
-                'px-3 py-1.5 font-medium transition ' +
-                (view.oilMode === m.id
-                  ? 'bg-sky-500/80 text-white'
-                  : 'text-slate-300 hover:bg-white/5')
-              }
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
+        {/* Mobile: theme toggle floats over the canvas (desktop has it in the header) */}
+        {!isDesktop && (
+          <ThemeToggle theme={theme} setTheme={setTheme} className="absolute right-4 top-4" />
+        )}
+
+        {/* Quick-access toolbar. On mobile it sits above the collapsed sheet and
+            hides while the sheet is open so it never overlaps panel content. */}
+        {(isDesktop || sheetSnap === 'peek') && (
+          <div
+            className="pointer-events-none absolute inset-x-0 z-20 flex justify-center px-3"
+            style={{ bottom: isDesktop ? 20 : SHEET_PEEK + 12 }}
+          >
+            <Toolbar view={view} onViewChange={onViewChange} />
+          </div>
+        )}
+
+        {/* Mobile bottom sheet */}
+        {!isDesktop && (
+          <BottomSheet
+            snap={sheetSnap}
+            onSnapChange={setSheetSnap}
+            header={<PanelTabBar tab={tab} onTabChange={onTabChange} />}
+          >
+            <ControlPanel tab={tab} {...panelProps} />
+          </BottomSheet>
+        )}
       </main>
     </div>
   );

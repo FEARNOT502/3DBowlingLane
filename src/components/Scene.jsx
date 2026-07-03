@@ -60,28 +60,36 @@ function WasdControls() {
   return null;
 }
 
-export default function Scene(props) {
+// Studio backdrop per theme: bright airy grey for the light UI, the original
+// deep navy for dark mode.
+const BACKDROPS = {
+  light: { bg: '#e6ebf4', floor: '#dbe2ee', ground: '#c8d2e0', ambient: 0.85 },
+  dark: { bg: '#070b15', floor: '#070b15', ground: '#120b04', ambient: 0.6 },
+};
+
+export default function Scene({ theme = 'light', ...props }) {
+  const bd = BACKDROPS[theme] || BACKDROPS.light;
   return (
     <Canvas
       dpr={[1, 2]}
       camera={{ position: [0, 17, 40], fov: 40, near: 0.1, far: 600 }}
       gl={{ antialias: true }}
     >
-      <color attach="background" args={['#070b15']} />
-      <fog attach="fog" args={['#070b15', 70, 210]} />
+      <color attach="background" args={[bd.bg]} />
+      <fog attach="fog" args={[bd.bg, 70, 210]} />
 
       {/* Lighting tuned to give the oil film a wet, specular sheen. */}
-      <ambientLight intensity={0.6} />
-      <hemisphereLight args={['#cfe0ff', '#120b04', 0.55]} />
+      <ambientLight intensity={bd.ambient} />
+      <hemisphereLight args={['#cfe0ff', bd.ground, 0.55]} />
       <directionalLight position={[16, 40, 30]} intensity={1.5} />
       <directionalLight position={[-22, 26, -20]} intensity={0.55} color="#a9c5ff" />
       {/* a long fill light down the lane to keep the far end lit */}
       <pointLight position={[0, 14, -20]} intensity={0.4} distance={120} color="#bcd4ff" />
 
-      {/* Dark floor for depth. */}
+      {/* Floor for depth. */}
       <mesh rotation-x={-Math.PI / 2} position={[0, -0.4, 0]}>
         <planeGeometry args={[400, 400]} />
-        <meshStandardMaterial color="#070b15" roughness={1} metalness={0} />
+        <meshStandardMaterial color={bd.floor} roughness={1} metalness={0} />
       </mesh>
 
       <Suspense fallback={null}>

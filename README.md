@@ -1,8 +1,10 @@
-# 🎳 3D Bowling Lane Oil Pattern Visualizer
+# Lane Oil Pattern 3D
 
 볼링 레인 오일 패턴 시트(Kegel / FLEX)의 수치 데이터를 그대로 입력받아 웹 브라우저에서
 **3D 레인 위에 렌더링·분석**하는 React 앱입니다. 패턴표의 그래프를 재현하는 **패턴표 모드**와
 PBA 중계 화면 같은 **실제 레인 모드**를 모두 지원합니다.
+
+밝고 모던한 인포그래픽 스타일 UI로, 라이트/다크 테마와 모바일 레이아웃을 지원합니다.
 
 > **Live demo**: https://fearnot502.github.io/3DBowlingLane/
 
@@ -55,6 +57,15 @@ npm run preview  # 빌드 결과 로컬 확인
 - 보드별 오일 분포 스택 차트(시트 하단 차트와 동일 형식), 피크 보드, 실측 패턴 길이
 - 시트의 Track Zone Ratio 표 표시 (머신 고유 알고리즘 값이므로 재계산하지 않음)
 
+### UI / 레이아웃
+- **인포그래픽 스타일**: 이모지 없이 SVG 스트로크 아이콘만 사용, 카드 스택 + 블루 액센트,
+  mono 숫자 중심의 스탯 타일
+- **라이트 / 다크 테마 토글**: 3D 배경·바닥까지 테마 연동, 선택은 `localStorage`에 유지
+- **데스크톱**: 좌측 사이드바를 **패턴 / 보기 / 분석** 3개 탭으로 분리
+- **모바일**: 3D가 항상 배경에 보이고, 아래에서 끌어올리는 **바텀 시트**(접힘/절반/전체 3단 스냅)에
+  컨트롤이 담김
+- **플로팅 툴바**: 오일 모드·레이어·라벨·핀·폭 배율 등 자주 쓰는 컨트롤을 3D 캔버스 위 컴팩트 바로 노출
+
 ## 데이터 해석 규칙
 
 ### 보드 표기 (중요)
@@ -101,10 +112,19 @@ src/
     storage.js        내 패턴 localStorage 저장
     analysis.js       보드별 분포·파생 통계
   components/
-    Scene.jsx            Canvas·조명·OrbitControls
-    Lane.jsx             레인·거터·핀·오일 표면·라벨·마커
-    Sidebar.jsx          컨트롤 패널
-    Legend.jsx           색상 범례
+    Scene.jsx             Canvas·조명·OrbitControls (테마 연동 배경)
+    Lane.jsx              레인·거터·핀·오일 표면·라벨·마커
+    ControlPanel.jsx      탭 라우팅 + 탭바 (패턴/보기/분석)
+    tabs/
+      PatternTab.jsx      패턴 불러오기(AI·PDF·샘플)·시트 메타데이터
+      ViewTab.jsx         오일 모드·레이어·시각화 슬라이더
+      AnalysisTab.jsx     분포 차트·패스 표·직접 편집·Track Zone
+    Toolbar.jsx           3D 캔버스 위 컴팩트 플로팅 툴바
+    BottomSheet.jsx       모바일 드래그 바텀 시트 (3단 스냅)
+    ui.jsx                공용 UI 프리미티브 (버튼·토글·슬라이더·카드…)
+    icons.jsx             SVG 스트로크 아이콘 세트 + 로고
+    Legend.jsx            색상 범례
     BoardProfileChart.jsx 보드별 분포 차트
+  App.jsx                 레이아웃(데스크톱 사이드바 / 모바일 시트)·상태·테마
   data/samplePatterns.js  내장 샘플 패턴
 ```

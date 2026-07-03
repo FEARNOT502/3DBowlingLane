@@ -37,7 +37,7 @@ export default function BoardProfileChart({ data, showForward, showReverse }) {
                 x={x + bw / 2}
                 y={H + 12}
                 textAnchor="middle"
-                className="fill-slate-400"
+                className="fill-slate-400 dark:fill-slate-500"
                 fontSize="7"
               >
                 {d.label}
@@ -46,7 +46,7 @@ export default function BoardProfileChart({ data, showForward, showReverse }) {
           </g>
         );
       })}
-      <line x1="0" y1={H} x2={W} y2={H} stroke="#334155" strokeWidth="0.5" />
+      <line x1="0" y1={H} x2={W} y2={H} className="stroke-slate-300 dark:stroke-slate-600" strokeWidth="0.5" />
     </svg>
   );
 }

@@ -2,33 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --app-bg: #f4f6fb;
+  --app-fg: #0f172a;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+  --slider-fill: #2563eb;
+  --slider-rest: #e2e8f0;
+}
+.dark {
+  --app-bg: #0b1220;
+  --app-fg: #e5e7eb;
+  --scrollbar-thumb: #334155;
+  --scrollbar-thumb-hover: #475569;
+  --slider-fill: #38bdf8;
+  --slider-rest: #334155;
+}
+
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
-  background: #0b1220;
-  color: #e5e7eb;
+  background: var(--app-bg);
+  color: var(--app-fg);
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Thin scrollbars for the sidebar */
+/* Thin scrollbars for panels */
 .scroll-thin {
   scrollbar-width: thin;
-  scrollbar-color: #334155 transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 .scroll-thin::-webkit-scrollbar {
   width: 8px;
 }
 .scroll-thin::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 .scroll-thin::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--scrollbar-thumb-hover);
 }
 .scroll-thin::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* Hide scrollbars entirely (horizontal chip rows, toolbar overflow) */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* Modern range slider (track is painted inline via a gradient on the element) */
@@ -44,8 +70,8 @@ body,
   width: 16px;
   border-radius: 9999px;
   background: #fff;
-  border: 3px solid #6366f1;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  border: 3px solid var(--slider-fill);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
   cursor: pointer;
   transition: transform 0.1s ease;
 }
@@ -57,7 +83,7 @@ body,
   width: 14px;
   border-radius: 9999px;
   background: #fff;
-  border: 3px solid #6366f1;
+  border: 3px solid var(--slider-fill);
   cursor: pointer;
 }
 .range-input::-moz-range-track {
@@ -72,4 +98,14 @@ input[type='number']::-webkit-inner-spin-button {
 }
 input[type='number'] {
   -moz-appearance: textfield;
+}
+
+/* Bottom-sheet drag handle: stop the browser from scrolling while dragging */
+.sheet-drag {
+  touch-action: none;
+}
+
+/* iOS safe-area helper for the bottom sheet */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }

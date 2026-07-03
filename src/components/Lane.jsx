@@ -277,8 +277,10 @@ function FeetLabels({ width }) {
   return (
     <group>
       {feetMarks.map((ft) => (
-        <Html key={ft} position={[half + 1, 0.1, feetToZ(ft)]} center distanceFactor={34} occlude={false}>
-          <div className="select-none whitespace-nowrap rounded bg-slate-900/80 px-1.5 py-0.5 text-[10px] font-mono text-sky-200 ring-1 ring-sky-500/30">
+        // No distanceFactor: labels keep a constant on-screen size regardless of
+        // zoom or the lane width scale, so the scale reads like a clean ruler.
+        <Html key={ft} position={[half + 1, 0.1, feetToZ(ft)]} center occlude={false} zIndexRange={[10, 0]}>
+          <div className="select-none whitespace-nowrap rounded-md border border-slate-200 bg-white/90 px-1.5 py-px font-mono text-[10px] font-medium text-slate-600 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-slate-900/85 dark:text-sky-200">
             {ft}ft
           </div>
         </Html>
@@ -296,8 +298,8 @@ function DistanceMarker({ distance, width }) {
         <planeGeometry args={[width, 0.16]} />
         <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={0.6} />
       </mesh>
-      <Html position={[-(half + 1.1), 0.1, feetToZ(distance)]} center distanceFactor={34}>
-        <div className="select-none whitespace-nowrap rounded bg-amber-500/90 px-1.5 py-0.5 text-[10px] font-semibold text-slate-900">
+      <Html position={[-(half + 1.1), 0.1, feetToZ(distance)]} center zIndexRange={[10, 0]}>
+        <div className="select-none whitespace-nowrap rounded-md bg-amber-400 px-1.5 py-px font-mono text-[10px] font-semibold text-slate-900 shadow-sm">
           끝 {distance}ft
         </div>
       </Html>
