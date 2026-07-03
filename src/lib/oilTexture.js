@@ -87,7 +87,10 @@ export function buildOilTextures(grid, max, layer, components = null, mode = 'sh
         //     and even the densest oil stays translucent enough to see boards.
         const d = rawAll / (rawAll + 0.6);
         [r, g, b] = densityColor(d, 'realistic');
-        a = Math.round(22 + d * 130); // ~25 (thin wash) .. ~110 (heavy heads)
+        // Thin wash barely tints the wood (~55) but the oil block ramps up to a
+        // near-opaque glaze (~245) so at full opacity it almost covers the lane
+        // layout — the down-lane material opacity slider scales this further.
+        a = Math.round(55 + d * 190);
       } else if (!covered) {
         // Buffer-brush film only: on the printed sheet this is the pale
         // periwinkle background, NOT a legend colour — the 3 flat legend colours
