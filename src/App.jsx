@@ -234,12 +234,14 @@ export default function App() {
         flip: view.flipPattern,
         // 포워드 버프아웃 거리(=패턴 거리): 버퍼 브러쉬 전폭 필름이 여기까지 깔린다.
         buffOutFeet: Number(meta.distance) || 0,
+        // 리버스 브러쉬는 드롭 지점부터 파울라인까지 버프 — 필름 시작점.
+        reverseBrushDropFeet: Number(meta.reverseBrushDrop) || 0,
         // 시트 모드: 인쇄된 그래프처럼 보드 단위 계단이 살아 있도록 블러 최소.
         // 실제 레인 모드: 버퍼 브러쉬가 옆으로 퍼진 부드러운 그라데이션.
         smoothBoards: view.oilMode === 'sheet' ? 0.45 : 2.2,
         smoothFeet: view.oilMode === 'sheet' ? 0.45 : 0.7,
       }),
-    [forwardPasses, reversePasses, view.flipPattern, view.oilMode, meta.distance]
+    [forwardPasses, reversePasses, view.flipPattern, view.oilMode, meta.distance, meta.reverseBrushDrop]
   );
 
   const selected = useMemo(

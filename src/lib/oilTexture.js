@@ -23,7 +23,9 @@ import { LAYER_COLORS, layeredColor, densityColor } from './colorScale.js';
 //                 shown by height. Matches the Kegel/FLEX 3-swatch legend.
 //   'realistic' — PBA real-lane look: translucent teal film that deepens with
 //                 thickness and lets the wood show through (low alpha).
-export function buildOilTextures(grid, max, layer, components = null, mode = 'sheet') {
+// `relief` — true when the caller renders the height map (thickness > 0); it
+// enables the side-wall colour fill below, which is meaningless on a flat film.
+export function buildOilTextures(grid, max, layer, components = null, mode = 'sheet', relief = false) {
   const w = BOARD_COUNT;
   const h = FEET_SAMPLES;
   const color = new Uint8Array(w * h * 4);
@@ -45,9 +47,12 @@ export function buildOilTextures(grid, max, layer, components = null, mode = 'sh
   const SATURATE = 0.8;
   const useLayers = layer === 'combined' && components && components.forward && components.reverse;
   const hasPresence = !!(components && (components.forward || components.reverse));
-  // Any cell with oil at/above this (normalised) reads as wet — low enough that the
-  // thin buffer-brush wash is included, not clipped away as a blur tail.
-  const WET_THRESHOLD = 0.02;
+  // A cell reads as WET when it carries at least this much conditioner, in
+  // ABSOLUTE ul per board-foot. The cut must NOT be relative to the pattern's
+  // normalisation: the buffer-brush film is a fixed ~1-2 ul/bf, so on a dense
+  // pattern a relative threshold climbs above the film and chops the wash off
+  // well short of the buff-out distance (e.g. at 38-40 ft on a 44 ft pattern).
+  const WET_MIN_UL = 0.4;
   // A cell belongs to the oil BLOCK (legend colour) when an oil load actually
   // covers it — i.e. its (blurred) presence clears this cut. Wet cells with no
   // presence only carry the buffer-brush film and are drawn as the sheet's pale
@@ -61,7 +66,7 @@ export function buildOilTextures(grid, max, layer, components = null, mode = 'sh
     const src = row * w + col;
 
     const rawAll = grid[src] * inv;
-    const wet = rawAll >= WET_THRESHOLD;
+    const wet = grid[src] >= WET_MIN_UL;
     // Height (volume) ramp: 0..1 of the thickness, gamma-spread so the wash is low
     // and the centre is tall.
     const raw = wet ? Math.min(1, rawAll / SATURATE) : 0;
@@ -119,6 +124,45 @@ export function buildOilTextures(grid, max, layer, components = null, mode = 'sh
     disp[o + 1] = v;
     disp[o + 2] = v;
     disp[o + 3] = 255;
+  }
+
+  // Side-wall fill (sheet mode with relief): the displaced plane's wall slope
+  // hangs over the first texel OUTSIDE the block, whose alpha is 0 (dry wood)
+  // or 150 (buffer wash) — so the outer half of every wall renders transparent
+  // and the raised block's edges look hollowed-out and jagged. Fill any low
+  // texel that sits beside a clearly taller one with that neighbour's colour at
+  // full alpha. The filled texel keeps ZERO height, so the fill paints exactly
+  // the wall footprint and never leaks onto the flat floor beyond it.
+  if (relief && !realistic) {
+    const WALL_STEP = 16; // min height gap (0..255) that reads as a wall
+    const srcColor = color.slice(); // fill from originals only — no cascading
+    for (let i = 0; i < w * h; i += 1) {
+      if (srcColor[i * 4 + 3] === 255) continue; // block cells keep their colour
+      const row = Math.floor(i / w);
+      const col = i % w;
+      const own = disp[i * 4];
+      let best = -1;
+      let bestDisp = own + WALL_STEP;
+      for (let dr = -1; dr <= 1; dr += 1) {
+        for (let dc = -1; dc <= 1; dc += 1) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = row + dr;
+          const nc = col + dc;
+          if (nr < 0 || nr >= h || nc < 0 || nc >= w) continue;
+          const n = nr * w + nc;
+          if (srcColor[n * 4 + 3] === 255 && disp[n * 4] >= bestDisp) {
+            best = n;
+            bestDisp = disp[n * 4];
+          }
+        }
+      }
+      if (best >= 0) {
+        color[i * 4] = srcColor[best * 4];
+        color[i * 4 + 1] = srcColor[best * 4 + 1];
+        color[i * 4 + 2] = srcColor[best * 4 + 2];
+        color[i * 4 + 3] = 255;
+      }
+    }
   }
 
   const colorTex = new THREE.DataTexture(color, w, h, THREE.RGBAFormat);

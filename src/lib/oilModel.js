@@ -121,8 +121,18 @@ function accumulate(grid, pass) {
   const colEnd = Math.min(BOARD_COUNT - 1, Math.round(pass.boardMax) - 1);
 
   for (let row = rowStart; row <= rowEnd; row += 1) {
+    // Weight the row by how much of it the pass actually covers. Load seams
+    // rarely land on a sample boundary (e.g. 21.7 ft on a 0.25 ft grid), and
+    // crediting the straddled row with FULL density from both neighbouring
+    // passes doubles it into a dark ridge line across the lane.
+    const rowLo = row * FEET_RESOLUTION;
+    const cover =
+      (Math.min(pass.feetMax, rowLo + FEET_RESOLUTION) - Math.max(pass.feetMin, rowLo)) /
+      FEET_RESOLUTION;
+    if (cover <= 0) continue;
+    const d = density * Math.min(1, cover);
     for (let col = colStart; col <= colEnd; col += 1) {
-      grid[gridIndex(row, col)] += density;
+      grid[gridIndex(row, col)] += d;
     }
   }
 }
@@ -289,7 +299,13 @@ export function buildOilModel(forwardPasses = [], reversePasses = [], options = 
   const filmForward = forwardAll.length
     ? Math.max(oiledReach(forwardAll), options.buffOutFeet || 0)
     : 0;
-  const filmReverse = reverseAll.length ? oiledReach(reverseAll) : 0;
+  // The reverse brush DROPS at the sheet's "Reverse Brush Drop" distance and
+  // buffs from there back to the foul line — the film starts at the drop point
+  // even when the last reverse LOAD ends short of it (only a travel row covers
+  // the gap), so honour the drop distance when the caller knows it.
+  const filmReverse = reverseAll.length
+    ? Math.max(oiledReach(reverseAll), options.reverseBrushDropFeet || 0)
+    : 0;
   accumulateBaseFilm(forward, filmForward);
   accumulateBaseFilm(reverse, filmReverse);
 

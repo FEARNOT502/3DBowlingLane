@@ -209,9 +209,10 @@ function BackgroundTint({ width, fadeFeet = 45, oilMode = 'sheet' }) {
 }
 
 function OilSurface({ width, grid, max, layer, components, thickness, opacity, oilMode }) {
+  const relief = thickness > 0;
   const { colorTex, dispTex } = useMemo(
-    () => buildOilTextures(grid, max, layer, components, oilMode),
-    [grid, max, layer, components, oilMode]
+    () => buildOilTextures(grid, max, layer, components, oilMode, relief),
+    [grid, max, layer, components, oilMode, relief]
   );
   useEffect(
     () => () => {
