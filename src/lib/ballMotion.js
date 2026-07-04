@@ -140,7 +140,7 @@ export function simulateShot(grid, norm, player) {
     }
 
     const phase = slip > 0.82 ? 'skid' : slip > 0.12 ? 'hook' : 'roll';
-    points.push({ feet, board: x, abs: bowlerToAbs(x, p.hand), speed: v, slip, phase, t });
+    points.push({ feet, board: x, abs: bowlerToAbs(x, p.hand), speed: v, slip, phase, t, oil });
 
     if (hookStartFeet == null && phase === 'hook') hookStartFeet = feet;
     if (rollFeet == null && phase === 'roll') rollFeet = feet;
@@ -177,6 +177,8 @@ export function simulateShot(grid, norm, player) {
   return {
     points,
     hand: p.hand,
+    revRpm: p.revRpm,
+    diff: p.diff,
     entryBoard,
     entryAngleDeg,
     entrySpeedKmh: last.speed / KMH_TO_FTS,

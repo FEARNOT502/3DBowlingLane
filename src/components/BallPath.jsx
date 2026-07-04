@@ -17,82 +17,171 @@ const PHASE_COLORS = {
 };
 
 const BALL_DIAMETER_INCH = 8.5;
-const REPLAY_HOLD_SEC = 1.3; // pause at the pins before the loop restarts
 
 function absToX(abs, width) {
   return ((abs - 0.5) / BOARD_COUNT - 0.5) * width;
 }
 
+const BALL_RADIUS_FT = BALL_DIAMETER_INCH / 2 / 12; // real radius, for spin rate
+const AXIS_ROTATION_RAD = (55 * Math.PI) / 180; // release axis rotation (tweener-ish)
+const MAX_OIL_RINGS = 12;
+const RING_SPACING_FEET = 3.2; // lay a new track ring every few feet of oiled travel
+const Z_AXIS = new THREE.Vector3(0, 0, 1);
+
+const UP = new THREE.Vector3(0, 1, 0);
+
 function RollingBall({ sim, width, feetToZ, lift, replayKey }) {
   const group = useRef();
   const ball = useRef();
+  const ringRefs = useRef([]);
   const idx = useRef(0);
   const startT = useRef(null);
   const prev = useRef(null);
+  const ringCount = useRef(0);
+  const lastRingFeet = useRef(-Infinity);
+  const trackAxisLocal = useRef(null); // ball-local axis the track rings share
   const radius = (BALL_DIAMETER_INCH / 2) * (width / LANE_WIDTH_INCH);
+
+  const resetShot = () => {
+    idx.current = 0;
+    prev.current = null;
+    ringCount.current = 0;
+    lastRingFeet.current = -Infinity;
+    trackAxisLocal.current = null;
+    ringRefs.current.forEach((m) => m && (m.visible = false));
+  };
 
   useEffect(() => {
     startT.current = null;
-    idx.current = 0;
-    prev.current = null;
+    resetShot();
   }, [replayKey, sim]);
 
-  useFrame(({ clock }) => {
-    if (!group.current || !sim.points.length) return;
+  useFrame(({ clock }, frameDt) => {
+    if (!group.current || !ball.current || !sim.points.length) return;
     if (startT.current == null) startT.current = clock.elapsedTime;
     const T = sim.totalTime;
-    let t = (clock.elapsedTime - startT.current) % (T + REPLAY_HOLD_SEC);
-    if (t > T) t = T;
+    // Plays ONCE per replay press (or sim change); the ball then rests at the
+    // pins until the next 볼 굴리기.
+    let t = clock.elapsedTime - startT.current;
+    const holding = t >= T;
+    if (holding) t = T;
 
     const pts = sim.points;
-    if (idx.current > 0 && pts[idx.current].t > t) {
-      idx.current = 0;
-      prev.current = null;
-    }
     while (idx.current < pts.length - 2 && pts[idx.current + 1].t <= t) idx.current += 1;
     const a = pts[idx.current];
     const b = pts[Math.min(idx.current + 1, pts.length - 1)];
     const f = b.t > a.t ? (t - a.t) / (b.t - a.t) : 0;
     const abs = a.abs + (b.abs - a.abs) * f;
     const feet = a.feet + (b.feet - a.feet) * f;
+    const slip = a.slip + (b.slip - a.slip) * f;
+    const speed = a.speed + (b.speed - a.speed) * f; // ft/s
+    const oil = (a.oil || 0) + ((b.oil || 0) - (a.oil || 0)) * f;
 
     const pos = new THREE.Vector3(absToX(abs, width), lift + radius, feetToZ(feet));
-    // roll the ball by arc length around the axis perpendicular to travel
-    if (prev.current && ball.current) {
+
+    if (prev.current && !holding) {
       const delta = pos.clone().sub(prev.current);
       delta.y = 0;
-      const ds = delta.length();
-      if (ds > 1e-6 && ds < radius * 8) {
-        const axis = delta.normalize().cross(new THREE.Vector3(0, 1, 0)).normalize();
-        ball.current.rotateOnWorldAxis(axis, ds / radius);
+      if (delta.lengthSq() > 1e-12) {
+        // Spin axis: at release the axis is ROTATED toward the travel direction
+        // (side rotation — that's what makes the ball hook); as slip converts to
+        // roll the axis migrates to pure end-over-end, exactly like a real ball.
+        const dir = delta.normalize();
+        const rollAxis = dir.clone().cross(UP).normalize();
+        const sign = sim.hand === 'L' ? 1 : -1;
+        const spinAxis = rollAxis
+          .clone()
+          .applyAxisAngle(UP, sign * AXIS_ROTATION_RAD * slip)
+          .normalize();
+        // Spin rate: the bowler's rev rate while slipping, surface-matching
+        // (v/r) once rolled — the visible "rev up" through the transition.
+        const omega =
+          slip * ((sim.revRpm || 350) * Math.PI * 2) / 60 +
+          (1 - slip) * (speed / BALL_RADIUS_FT);
+        ball.current.rotateOnWorldAxis(spinAxis, omega * Math.min(frameDt, 0.05));
+
+        // Oil track: rings the conditioner paints around the spin axis. Flare
+        // precession walks the contact circle a couple of degrees of latitude
+        // per revolution set — scaled by Diff (flare potential) and rev rate —
+        // so the track reads as a CLEAN stack of parallel rings (like a real
+        // ball's flare lines), not a fan crossing at the poles.
+        if (
+          oil > 0.06 &&
+          feet - lastRingFeet.current >= RING_SPACING_FEET &&
+          ringCount.current < MAX_OIL_RINGS
+        ) {
+          const ring = ringRefs.current[ringCount.current];
+          if (ring) {
+            if (!trackAxisLocal.current) {
+              // all rings share the axis captured at first oil contact,
+              // expressed in the ball's local frame (invariant under its spin)
+              trackAxisLocal.current = spinAxis
+                .clone()
+                .applyQuaternion(ball.current.quaternion.clone().invert())
+                .normalize();
+            }
+            const axisL = trackAxisLocal.current;
+            const flareStep =
+              THREE.MathUtils.degToRad(2.6) *
+              Math.min(1.9, Math.max(0.3, (sim.diff || 0.048) / 0.048)) *
+              Math.sqrt((sim.revRpm || 350) / 350);
+            // latitude of this ring: start at the equator (great circle) and
+            // migrate toward the axis a step per ring
+            const theta = Math.PI / 2 - ringCount.current * flareStep;
+            ring.quaternion.setFromUnitVectors(Z_AXIS, axisL);
+            ring.position.copy(axisL).multiplyScalar(radius * Math.cos(theta));
+            ring.scale.setScalar(Math.max(0.4, Math.sin(theta)));
+            ring.visible = true;
+            ringCount.current += 1;
+            lastRingFeet.current = feet;
+          }
+        }
       }
     }
     prev.current = pos;
     group.current.position.copy(pos);
   });
 
-  // finger-hole cluster on the surface makes the roll (and flare) visible
-  const holes = useMemo(() => {
-    const dirs = [
-      new THREE.Vector3(0.25, 0.95, 0.1),
-      new THREE.Vector3(-0.05, 0.92, 0.38),
-      new THREE.Vector3(0.38, 0.85, 0.36),
-    ].map((v) => v.normalize());
-    return dirs;
-  }, []);
+  // Grip layout: middle/ring finger inserts side by side, thumb hole apart
+  // below them — they make the roll (and flare) easy to read.
+  const holes = useMemo(
+    () => [
+      { dir: new THREE.Vector3(0.14, 0.97, 0.2).normalize(), r: 0.075 }, // 중지
+      { dir: new THREE.Vector3(-0.14, 0.97, 0.2).normalize(), r: 0.075 }, // 약지
+      { dir: new THREE.Vector3(0, 0.78, -0.63).normalize(), r: 0.1 }, // 엄지
+    ],
+    []
+  );
 
   return (
     <group ref={group}>
       <mesh ref={ball}>
         <sphereGeometry args={[radius, 32, 32]} />
         <meshStandardMaterial color="#1d4ed8" roughness={0.15} metalness={0.15} />
-        <mesh rotation-x={Math.PI / 2.6} rotation-z={0.5}>
-          <torusGeometry args={[radius * 0.99, radius * 0.045, 8, 48]} />
-          <meshStandardMaterial color="#93c5fd" roughness={0.3} />
-        </mesh>
-        {holes.map((d, i) => (
-          <mesh key={i} position={d.clone().multiplyScalar(radius * 0.97).toArray()}>
-            <sphereGeometry args={[radius * 0.09, 10, 10]} />
+        {/* oil track rings — hidden until the ball actually rolls through oil */}
+        {Array.from({ length: MAX_OIL_RINGS }, (_, i) => (
+          <mesh
+            key={i}
+            visible={false}
+            ref={(el) => {
+              ringRefs.current[i] = el;
+            }}
+          >
+            <torusGeometry args={[radius * 0.99, radius * 0.013, 6, 64]} />
+            <meshStandardMaterial
+              color="#ffffff"
+              emissive="#ffffff"
+              emissiveIntensity={0.3}
+              transparent
+              opacity={0.9}
+              roughness={0.05}
+              metalness={0.05}
+            />
+          </mesh>
+        ))}
+        {holes.map((h, i) => (
+          <mesh key={`h${i}`} position={h.dir.clone().multiplyScalar(radius * 0.97).toArray()}>
+            <sphereGeometry args={[radius * h.r, 10, 10]} />
             <meshStandardMaterial color="#0f172a" roughness={0.6} />
           </mesh>
         ))}
