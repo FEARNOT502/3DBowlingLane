@@ -132,6 +132,12 @@ export const IconLoader = (p) => (
   </Base>
 );
 
+export const IconPlay = (p) => (
+  <Base {...p}>
+    <path d="M7 4.5v15l13-7.5Z" />
+  </Base>
+);
+
 export const IconBall = (p) => (
   <Base {...p}>
     <circle cx="12" cy="12" r="9" />

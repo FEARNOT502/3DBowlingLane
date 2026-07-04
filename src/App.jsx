@@ -11,7 +11,7 @@ import { simulateShot, recommendLines, DEFAULT_PLAYER } from './lib/ballMotion.j
 import { importPatternFromPdf } from './lib/pdfImport.js';
 import { parseAiImport } from './lib/aiImport.js';
 import { loadSavedPatterns, savePattern, deletePattern } from './lib/storage.js';
-import { IconSun, IconMoon, LogoMark } from './components/icons.jsx';
+import { IconSun, IconMoon, IconPlay, LogoMark } from './components/icons.jsx';
 
 function parseTexts(forwardText, reverseText) {
   const forwardPasses = parsePassTable(forwardText, 'forward');
@@ -436,10 +436,21 @@ export default function App() {
             hides while the sheet is open so it never overlaps panel content. */}
         {(isDesktop || sheetSnap === 'peek') && (
           <div
-            className="pointer-events-none absolute inset-x-0 z-20 flex justify-center px-3"
+            className="pointer-events-none absolute inset-x-0 z-20 flex items-center justify-center gap-2 px-3"
             style={{ bottom: isDesktop ? 20 : SHEET_PEEK + 12 }}
           >
             <Toolbar view={view} onViewChange={onViewChange} />
+            {/* 플레이 탭: replay right on the canvas, no panel round-trip */}
+            {tab === 'play' && (
+              <button
+                type="button"
+                onClick={onReplay}
+                title="볼 굴리기 (처음부터 재생)"
+                className="pointer-events-auto grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/30 transition-all hover:bg-blue-500 active:scale-95 dark:bg-sky-500 dark:hover:bg-sky-400"
+              >
+                <IconPlay size={15} />
+              </button>
+            )}
           </div>
         )}
 

@@ -17,6 +17,7 @@ const PHASE_COLORS = {
 };
 
 const BALL_DIAMETER_INCH = 8.5;
+const REPLAY_HOLD_SEC = 1.3; // rest at the pins before the loop restarts
 
 function absToX(abs, width) {
   return ((abs - 0.5) / BOARD_COUNT - 0.5) * width;
@@ -26,6 +27,10 @@ const BALL_RADIUS_FT = BALL_DIAMETER_INCH / 2 / 12; // real radius, for spin rat
 const AXIS_ROTATION_RAD = (55 * Math.PI) / 180; // release axis rotation (tweener-ish)
 const MAX_OIL_RINGS = 12;
 const RING_SPACING_FEET = 3.2; // lay a new track ring every few feet of oiled travel
+// PAP (positive axis point) sits ~5.5" over from the grip centre — ~73° of arc
+// on an 8.5" ball. Anchoring the spin axis here puts the oil track right next
+// to the finger/thumb holes, where a real ball tracks.
+const PAP_FROM_GRIP_RAD = (73 * Math.PI) / 180;
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -39,7 +44,8 @@ function RollingBall({ sim, width, feetToZ, lift, replayKey }) {
   const prev = useRef(null);
   const ringCount = useRef(0);
   const lastRingFeet = useRef(-Infinity);
-  const trackAxisLocal = useRef(null); // ball-local axis the track rings share
+  const oriented = useRef(false); // release orientation applied for this shot
+  const trackAxisLocal = useRef(null); // ball-local PAP the track rings share
   const radius = (BALL_DIAMETER_INCH / 2) * (width / LANE_WIDTH_INCH);
 
   const resetShot = () => {
@@ -47,6 +53,7 @@ function RollingBall({ sim, width, feetToZ, lift, replayKey }) {
     prev.current = null;
     ringCount.current = 0;
     lastRingFeet.current = -Infinity;
+    oriented.current = false;
     trackAxisLocal.current = null;
     ringRefs.current.forEach((m) => m && (m.visible = false));
   };
@@ -60,13 +67,13 @@ function RollingBall({ sim, width, feetToZ, lift, replayKey }) {
     if (!group.current || !ball.current || !sim.points.length) return;
     if (startT.current == null) startT.current = clock.elapsedTime;
     const T = sim.totalTime;
-    // Plays ONCE per replay press (or sim change); the ball then rests at the
-    // pins until the next 볼 굴리기.
-    let t = clock.elapsedTime - startT.current;
-    const holding = t >= T;
+    // Loops with a short rest at the pins; 볼 굴리기 restarts from the top.
+    let t = (clock.elapsedTime - startT.current) % (T + REPLAY_HOLD_SEC);
+    const holding = t > T;
     if (holding) t = T;
 
     const pts = sim.points;
+    if (idx.current > 0 && pts[idx.current].t > t) resetShot(); // loop wrapped
     while (idx.current < pts.length - 2 && pts[idx.current + 1].t <= t) idx.current += 1;
     const a = pts[idx.current];
     const b = pts[Math.min(idx.current + 1, pts.length - 1)];
@@ -93,6 +100,32 @@ function RollingBall({ sim, width, feetToZ, lift, replayKey }) {
           .clone()
           .applyAxisAngle(UP, sign * AXIS_ROTATION_RAD * slip)
           .normalize();
+
+        // Release orientation (once per shot): hold the ball so its local PAP
+        // lies on the release spin axis with the grip facing up — exactly how
+        // a real hand delivers it. The oil track then forms beside the grip.
+        if (!oriented.current) {
+          const pLocal = new THREE.Vector3(
+            (sim.hand === 'L' ? -1 : 1) * Math.sin(PAP_FROM_GRIP_RAD),
+            Math.cos(PAP_FROM_GRIP_RAD),
+            0
+          ).normalize();
+          const q = new THREE.Quaternion().setFromUnitVectors(pLocal, spinAxis);
+          // free twist about the axis: use it to point the grip upward
+          const g = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+          const gp = g.clone().addScaledVector(spinAxis, -g.dot(spinAxis));
+          const upp = UP.clone().addScaledVector(spinAxis, -UP.dot(spinAxis));
+          if (gp.lengthSq() > 1e-8 && upp.lengthSq() > 1e-8) {
+            gp.normalize();
+            upp.normalize();
+            let ang = Math.acos(THREE.MathUtils.clamp(gp.dot(upp), -1, 1));
+            if (gp.clone().cross(upp).dot(spinAxis) < 0) ang = -ang;
+            q.premultiply(new THREE.Quaternion().setFromAxisAngle(spinAxis, ang));
+          }
+          ball.current.quaternion.copy(q);
+          trackAxisLocal.current = pLocal;
+          oriented.current = true;
+        }
         // Spin rate: the bowler's rev rate while slipping, surface-matching
         // (v/r) once rolled — the visible "rev up" through the transition.
         const omega =
@@ -111,15 +144,7 @@ function RollingBall({ sim, width, feetToZ, lift, replayKey }) {
           ringCount.current < MAX_OIL_RINGS
         ) {
           const ring = ringRefs.current[ringCount.current];
-          if (ring) {
-            if (!trackAxisLocal.current) {
-              // all rings share the axis captured at first oil contact,
-              // expressed in the ball's local frame (invariant under its spin)
-              trackAxisLocal.current = spinAxis
-                .clone()
-                .applyQuaternion(ball.current.quaternion.clone().invert())
-                .normalize();
-            }
+          if (ring && trackAxisLocal.current) {
             const axisL = trackAxisLocal.current;
             const flareStep =
               THREE.MathUtils.degToRad(2.6) *
