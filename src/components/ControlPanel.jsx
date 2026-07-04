@@ -2,11 +2,13 @@ import React from 'react';
 import PatternTab from './tabs/PatternTab.jsx';
 import ViewTab from './tabs/ViewTab.jsx';
 import AnalysisTab from './tabs/AnalysisTab.jsx';
-import { IconImport, IconSliders, IconChart } from './icons.jsx';
+import PlayTab from './tabs/PlayTab.jsx';
+import { IconImport, IconSliders, IconChart, IconBall } from './icons.jsx';
 
 export const PANEL_TABS = [
   { id: 'pattern', label: '패턴', Icon: IconImport },
   { id: 'view', label: '보기', Icon: IconSliders },
+  { id: 'play', label: '플레이', Icon: IconBall },
   { id: 'analysis', label: '분석', Icon: IconChart },
 ];
 
@@ -42,6 +44,18 @@ export default function ControlPanel({ tab, ...props }) {
   if (tab === 'view') {
     return <ViewTab view={props.view} onViewChange={props.onViewChange} layer={props.layer} />;
   }
+  if (tab === 'play') {
+    return (
+      <PlayTab
+        play={props.play}
+        onPlayChange={props.onPlayChange}
+        sim={props.sim}
+        recs={props.recs}
+        onApplyLine={props.onApplyLine}
+        onReplay={props.onReplay}
+      />
+    );
+  }
   if (tab === 'analysis') {
     return (
       <AnalysisTab
@@ -57,6 +71,10 @@ export default function ControlPanel({ tab, ...props }) {
         stats={props.stats}
         chartData={props.chartData}
         trackZones={props.trackZones}
+        sliceFeet={props.sliceFeet}
+        onSliceFeetChange={props.onSliceFeetChange}
+        sliceData={props.sliceData}
+        sliceMax={props.sliceMax}
       />
     );
   }

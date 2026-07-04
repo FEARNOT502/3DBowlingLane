@@ -2,16 +2,21 @@ import React from 'react';
 
 // Cross-lane oil distribution: stacked forward (cyan) + reverse (blue) volume
 // per board, mirroring the bar chart at the bottom of the machine sheet.
-export default function BoardProfileChart({ data, showForward, showReverse }) {
-  const max = Math.max(
-    1,
-    ...data.map((d) => {
-      let v = 0;
-      if (showForward) v += d.forward;
-      if (showReverse) v += d.reverse;
-      return v;
-    })
-  );
+export default function BoardProfileChart({ data, showForward, showReverse, maxOverride }) {
+  // maxOverride pins the y-scale to a fixed reference (e.g. the pattern's
+  // robust norm) so sliding a cross-section through the lane reads as absolute
+  // change, not per-frame re-normalisation.
+  const max =
+    maxOverride ||
+    Math.max(
+      1,
+      ...data.map((d) => {
+        let v = 0;
+        if (showForward) v += d.forward;
+        if (showReverse) v += d.reverse;
+        return v;
+      })
+    );
 
   const W = 300;
   const H = 120;

@@ -132,6 +132,15 @@ export const IconLoader = (p) => (
   </Base>
 );
 
+export const IconBall = (p) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="9" cy="8" r="1" />
+    <circle cx="13.5" cy="7" r="1" />
+    <circle cx="12.5" cy="11" r="1" />
+  </Base>
+);
+
 // App mark: abstract lane perspective on a blue gradient tile.
 export const LogoMark = ({ size = 34, className = '' }) => (
   <svg width={size} height={size} viewBox="0 0 36 36" className={className} aria-hidden="true">

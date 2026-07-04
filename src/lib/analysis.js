@@ -1,4 +1,4 @@
-import { BOARD_COUNT, FEET_RESOLUTION } from './laneConstants.js';
+import { BOARD_COUNT, FEET_RESOLUTION, FEET_SAMPLES } from './laneConstants.js';
 import { boardLabel } from './boardUtils.js';
 
 const avgRange = (arr, fromIdx, toIdx) => {
@@ -41,6 +41,25 @@ export function computeStats(model) {
     patternEndFeet,
     trackRatio,
   };
+}
+
+// Cross-section at a single down-lane distance: per-board densities (µl per
+// board-foot) for the forward/reverse/combined layers. Same row shape as
+// boardChartData so the two share one chart component.
+export function sliceChartData(model, feet) {
+  const row = Math.min(FEET_SAMPLES - 1, Math.max(0, Math.round(feet / FEET_RESOLUTION)));
+  const out = [];
+  for (let b = 0; b < BOARD_COUNT; b += 1) {
+    const i = row * BOARD_COUNT + b;
+    out.push({
+      board: b + 1,
+      label: boardLabel(b + 1),
+      forward: model.forward[i],
+      reverse: model.reverse[i],
+      combined: model.combined[i],
+    });
+  }
+  return out;
 }
 
 // Per-board forward/reverse totals (ul per board) for the cross-lane bar chart.

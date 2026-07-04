@@ -6,7 +6,8 @@ import Toolbar from './components/Toolbar.jsx';
 import { SAMPLE_PATTERNS, JINSEUNG_A } from './data/samplePatterns.js';
 import { parsePassTable, totalOilMl } from './lib/parsePattern.js';
 import { buildOilModel, selectGrid } from './lib/oilModel.js';
-import { computeStats, boardChartData } from './lib/analysis.js';
+import { computeStats, boardChartData, sliceChartData } from './lib/analysis.js';
+import { simulateShot, recommendLines, DEFAULT_PLAYER } from './lib/ballMotion.js';
 import { importPatternFromPdf } from './lib/pdfImport.js';
 import { parseAiImport } from './lib/aiImport.js';
 import { loadSavedPatterns, savePattern, deletePattern } from './lib/storage.js';
@@ -111,7 +112,7 @@ export default function App() {
     // 올바른 방향 — 반전은 옵션으로만 남긴다.
     flipPattern: false,
     opacity: 0.95,
-    thickness: 0.8,
+    thickness: 0,
     // 1 = 실제 비율(레인은 60ft × 41.5"로 매우 가늘다). 기본값은 인쇄된
     // 패턴표 그래프와 같은 비율(실제 폭의 약 5배)로 설정.
     widthScale: 5,
@@ -252,6 +253,60 @@ export default function App() {
   const stats = useMemo(() => computeStats(model), [model]);
   const chartData = useMemo(() => boardChartData(model), [model]);
 
+  // ---- 플레이: shot simulation + line recommendations --------------------
+  // Physics always runs on the REAL-lane grid (buffer-spread smoothing),
+  // independent of the sheet/realistic display toggle — switching how the oil
+  // is DRAWN must not change how the ball behaves.
+  const physicsModel = useMemo(
+    () =>
+      buildOilModel(forwardPasses, reversePasses, {
+        flip: view.flipPattern,
+        buffOutFeet: Number(meta.distance) || 0,
+        reverseBrushDropFeet: Number(meta.reverseBrushDrop) || 0,
+        smoothBoards: 2.2,
+        smoothFeet: 0.7,
+      }),
+    [forwardPasses, reversePasses, view.flipPattern, meta.distance, meta.reverseBrushDrop]
+  );
+  const [play, setPlay] = useState({ ...DEFAULT_PLAYER, showPath: true });
+  const [replayKey, setReplayKey] = useState(0);
+  const onPlayChange = useCallback((field, value) => {
+    setPlay((p) => ({ ...p, [field]: value }));
+  }, []);
+  const onReplay = useCallback(() => setReplayKey((k) => k + 1), []);
+
+  const sim = useMemo(
+    () => simulateShot(physicsModel.combined, physicsModel.norm.combined, play),
+    [physicsModel, play]
+  );
+  // Recommendations only depend on the bowler/ball spec, not the current line.
+  const recs = useMemo(
+    () =>
+      recommendLines(
+        physicsModel.combined,
+        physicsModel.norm.combined,
+        {
+          hand: play.hand,
+          speedKmh: play.speedKmh,
+          revRpm: play.revRpm,
+          rg: play.rg,
+          diff: play.diff,
+          psa: play.psa,
+        },
+        Number(meta.distance) || null
+      ),
+    [physicsModel, play.hand, play.speedKmh, play.revRpm, play.rg, play.diff, play.psa, meta.distance]
+  );
+  const onApplyLine = useCallback((line) => {
+    if (!line) return;
+    setPlay((p) => ({ ...p, laydownBoard: line.laydownBoard, targetBoard: line.targetBoard }));
+    setReplayKey((k) => k + 1);
+  }, []);
+
+  // ---- 분석: cross-section slice ----------------------------------------
+  const [sliceFeet, setSliceFeet] = useState(20);
+  const sliceData = useMemo(() => sliceChartData(model, sliceFeet), [model, sliceFeet]);
+
   const totals = useMemo(
     () => ({
       forwardMl: totalOilMl(forwardPasses),
@@ -294,6 +349,16 @@ export default function App() {
     chartData,
     totals,
     trackZones,
+    play,
+    onPlayChange,
+    sim,
+    recs,
+    onApplyLine,
+    onReplay,
+    sliceFeet,
+    onSliceFeetChange: setSliceFeet,
+    sliceData,
+    sliceMax: model.norm.combined,
   };
 
   return (
@@ -320,7 +385,9 @@ export default function App() {
           max={selected.max}
           layer={selected.layer}
           components={selected.components}
-          thickness={view.thickness}
+          // 플레이 탭은 궤적·볼이 주인공 — 오일 릴리프(두께)는 평평하게 눌러서
+          // 라인이 오일 슬래브에 가려지지 않게 한다.
+          thickness={tab === 'play' ? 0 : view.thickness}
           opacity={view.opacity}
           showOil={view.showOil}
           showLabels={view.showLabels}
@@ -328,6 +395,11 @@ export default function App() {
           widthScale={view.widthScale}
           patternDistance={meta.distance}
           oilMode={view.oilMode}
+          ballSim={sim}
+          showPath={play.showPath && tab === 'play'}
+          replayKey={replayKey}
+          sliceFeet={sliceFeet}
+          showSlice={tab === 'analysis'}
         />
 
         {/* Pattern summary card — compact infographic strip */}

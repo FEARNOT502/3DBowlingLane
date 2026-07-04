@@ -1,6 +1,6 @@
 import React from 'react';
 import BoardProfileChart from '../BoardProfileChart.jsx';
-import { Section, Card, Button, Stat, Disclosure } from '../ui.jsx';
+import { Section, Card, Button, Stat, Disclosure, Slider } from '../ui.jsx';
 
 // Full pass table — renders every column from the parsed sheet rows so no data
 // is hidden. Horizontally scrollable to fit the narrow panel.
@@ -65,7 +65,16 @@ export default function AnalysisTab({
   stats,
   chartData,
   trackZones,
+  sliceFeet,
+  onSliceFeetChange,
+  sliceData,
+  sliceMax,
 }) {
+  // Peak of the current cross-section (combined) for the readout line.
+  let slicePeak = null;
+  if (sliceData?.length) {
+    slicePeak = sliceData.reduce((best, d) => (d.combined > best.combined ? d : best), sliceData[0]);
+  }
   return (
     <div className="pb-4">
       <Section title="보드별 오일 분포">
@@ -81,6 +90,36 @@ export default function AnalysisTab({
           <Stat label="실측 길이" value={stats.patternEndFeet.toFixed(1)} sub="ft" />
           <Stat label="중앙:트랙" value={stats.trackRatio.toFixed(1)} sub="비율(파생)" />
         </div>
+      </Section>
+
+      <Section
+        title="거리별 오일 단면"
+        hint="슬라이더로 고른 거리의 좌우 단면입니다. 3D 레인에 청록색 위치선이 표시됩니다."
+      >
+        <Slider
+          label="거리"
+          value={sliceFeet}
+          min={0}
+          max={60}
+          step={0.25}
+          fmt={(v) => v.toFixed(2).replace(/\.?0+$/, '')}
+          suffix=" ft"
+          onChange={onSliceFeetChange}
+        />
+        <Card className="px-3 py-3">
+          <BoardProfileChart
+            data={sliceData}
+            showForward={view.showForward}
+            showReverse={view.showReverse}
+            maxOverride={sliceMax}
+          />
+        </Card>
+        {slicePeak && (
+          <p className="mt-2 px-1 text-[11px] text-slate-400 dark:text-slate-500">
+            단면 피크 {slicePeak.label}보드 · {slicePeak.combined.toFixed(1)} µl/보드·ft
+            {slicePeak.combined <= 0.01 && ' — 이 거리에는 오일이 없습니다'}
+          </p>
+        )}
       </Section>
 
       <Section

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Html } from '@react-three/drei';
 import { makeLaneTexture, makeDeckTexture } from '../lib/laneTexture.js';
 import { buildOilTextures } from '../lib/oilTexture.js';
+import BallPath from './BallPath.jsx';
 import {
   BOARD_COUNT,
   FEET_SAMPLES,
@@ -290,6 +291,25 @@ function FeetLabels({ width }) {
   );
 }
 
+// Thin cross-lane cursor showing where the 분석 tab's cross-section slider sits.
+function SliceIndicator({ feet, width, lift = 0.045 }) {
+  if (feet == null || feet < 0 || feet > LANE_LENGTH_FEET) return null;
+  const half = width / 2;
+  return (
+    <group>
+      <mesh position={[0, lift, feetToZ(feet)]} rotation-x={-Math.PI / 2}>
+        <planeGeometry args={[width, 0.1]} />
+        <meshStandardMaterial color="#06b6d4" emissive="#06b6d4" emissiveIntensity={0.55} />
+      </mesh>
+      <Html position={[-(half + 1.1), 0.1, feetToZ(feet)]} center zIndexRange={[10, 0]}>
+        <div className="select-none whitespace-nowrap rounded-md bg-cyan-400 px-1.5 py-px font-mono text-[10px] font-semibold text-slate-900 shadow-sm">
+          단면 {feet.toFixed(2).replace(/\.?0+$/, '')}ft
+        </div>
+      </Html>
+    </group>
+  );
+}
+
 function DistanceMarker({ distance, width }) {
   if (!distance || distance <= 0 || distance > LANE_LENGTH_FEET) return null;
   const half = width / 2;
@@ -321,8 +341,16 @@ export default function Lane({
   widthScale = 1,
   patternDistance,
   oilMode = 'sheet',
+  ballSim,
+  showPath,
+  replayKey,
+  sliceFeet,
+  showSlice,
 }) {
   const width = BASE_WIDTH * widthScale;
+  // Keep the shot overlay above the displaced oil relief (same scale factor
+  // the OilSurface uses for its displacement map).
+  const pathLift = 0.08 + 0.55 * thickness * (width / 9.1) * (oilMode === 'realistic' ? 0.15 : 1);
   return (
     <group>
       <WoodLane width={width} />
@@ -349,6 +377,16 @@ export default function Lane({
           <Pins halfWidth={width / 2} />
         </>
       )}
+      {showPath && ballSim && (
+        <BallPath
+          sim={ballSim}
+          width={width}
+          feetToZ={feetToZ}
+          lift={pathLift}
+          replayKey={replayKey}
+        />
+      )}
+      {showSlice && <SliceIndicator feet={sliceFeet} width={width} lift={pathLift} />}
       {showLabels && (
         <>
           <FeetLabels width={width} />

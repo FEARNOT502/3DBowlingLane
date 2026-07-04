@@ -40,11 +40,6 @@ export default function ViewTab({ view, onViewChange, layer }) {
           checked={view.showReverse}
           onChange={(v) => onViewChange('showReverse', v)}
         />
-        <Toggle
-          label="패턴 상하 반전 (시트 방향 뒤집기)"
-          checked={view.flipPattern}
-          onChange={(v) => onViewChange('flipPattern', v)}
-        />
         <div className="mt-3 px-2">
           <Legend layer={layer} />
         </div>
