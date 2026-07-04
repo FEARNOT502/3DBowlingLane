@@ -67,8 +67,11 @@ function RollingBall({ sim, width, feetToZ, lift, replayKey, playing = true, pla
     if (!group.current || !ball.current || !sim.points.length) return;
     const T = sim.totalTime;
     // Own clock so playback can pause and change speed: advance only while
-    // playing, loop with a short rest at the pins.
-    const dt = Math.min(frameDt, 0.05) * playSpeed;
+    // playing. The rest at the pins stays real-time regardless of playSpeed —
+    // only the roll itself should feel faster/slower.
+    const rawDt = Math.min(frameDt, 0.05);
+    const wasHolding = progress.current > T;
+    const dt = wasHolding ? rawDt : rawDt * playSpeed;
     if (playing) {
       progress.current += dt;
       if (progress.current >= T + REPLAY_HOLD_SEC) {
@@ -111,8 +114,10 @@ function RollingBall({ sim, width, feetToZ, lift, replayKey, playing = true, pla
         // lies on the release spin axis with the grip facing up — exactly how
         // a real hand delivers it. The oil track then forms beside the grip.
         if (!oriented.current) {
+          // holes[] place the middle/ring finger inserts at +x (righty); the
+          // track must sit on the OPPOSITE side (-x), so flip the sign here.
           const pLocal = new THREE.Vector3(
-            (sim.hand === 'L' ? -1 : 1) * Math.sin(PAP_FROM_GRIP_RAD),
+            (sim.hand === 'L' ? 1 : -1) * Math.sin(PAP_FROM_GRIP_RAD),
             Math.cos(PAP_FROM_GRIP_RAD),
             0
           ).normalize();
