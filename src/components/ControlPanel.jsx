@@ -52,7 +52,10 @@ export default function ControlPanel({ tab, ...props }) {
         sim={props.sim}
         recs={props.recs}
         onApplyLine={props.onApplyLine}
-        onReplay={props.onReplay}
+        playing={props.playing}
+        onTogglePlay={props.onTogglePlay}
+        playSpeed={props.playSpeed}
+        onPlaySpeedChange={props.onPlaySpeedChange}
       />
     );
   }

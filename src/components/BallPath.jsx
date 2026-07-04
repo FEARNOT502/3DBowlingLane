@@ -35,12 +35,12 @@ const Z_AXIS = new THREE.Vector3(0, 0, 1);
 
 const UP = new THREE.Vector3(0, 1, 0);
 
-function RollingBall({ sim, width, feetToZ, lift, replayKey }) {
+function RollingBall({ sim, width, feetToZ, lift, replayKey, playing = true, playSpeed = 1 }) {
   const group = useRef();
   const ball = useRef();
   const ringRefs = useRef([]);
   const idx = useRef(0);
-  const startT = useRef(null);
+  const progress = useRef(0); // seconds into the loop cycle (pausable, scalable)
   const prev = useRef(null);
   const ringCount = useRef(0);
   const lastRingFeet = useRef(-Infinity);
@@ -59,21 +59,27 @@ function RollingBall({ sim, width, feetToZ, lift, replayKey }) {
   };
 
   useEffect(() => {
-    startT.current = null;
+    progress.current = 0;
     resetShot();
   }, [replayKey, sim]);
 
-  useFrame(({ clock }, frameDt) => {
+  useFrame((_, frameDt) => {
     if (!group.current || !ball.current || !sim.points.length) return;
-    if (startT.current == null) startT.current = clock.elapsedTime;
     const T = sim.totalTime;
-    // Loops with a short rest at the pins; 볼 굴리기 restarts from the top.
-    let t = (clock.elapsedTime - startT.current) % (T + REPLAY_HOLD_SEC);
-    const holding = t > T;
-    if (holding) t = T;
+    // Own clock so playback can pause and change speed: advance only while
+    // playing, loop with a short rest at the pins.
+    const dt = Math.min(frameDt, 0.05) * playSpeed;
+    if (playing) {
+      progress.current += dt;
+      if (progress.current >= T + REPLAY_HOLD_SEC) {
+        progress.current = 0;
+        resetShot();
+      }
+    }
+    const holding = progress.current > T;
+    const t = holding ? T : progress.current;
 
     const pts = sim.points;
-    if (idx.current > 0 && pts[idx.current].t > t) resetShot(); // loop wrapped
     while (idx.current < pts.length - 2 && pts[idx.current + 1].t <= t) idx.current += 1;
     const a = pts[idx.current];
     const b = pts[Math.min(idx.current + 1, pts.length - 1)];
@@ -86,7 +92,7 @@ function RollingBall({ sim, width, feetToZ, lift, replayKey }) {
 
     const pos = new THREE.Vector3(absToX(abs, width), lift + radius, feetToZ(feet));
 
-    if (prev.current && !holding) {
+    if (prev.current && !holding && playing) {
       const delta = pos.clone().sub(prev.current);
       delta.y = 0;
       if (delta.lengthSq() > 1e-12) {
@@ -131,7 +137,7 @@ function RollingBall({ sim, width, feetToZ, lift, replayKey }) {
         const omega =
           slip * ((sim.revRpm || 350) * Math.PI * 2) / 60 +
           (1 - slip) * (speed / BALL_RADIUS_FT);
-        ball.current.rotateOnWorldAxis(spinAxis, omega * Math.min(frameDt, 0.05));
+        ball.current.rotateOnWorldAxis(spinAxis, omega * dt);
 
         // Oil track: rings the conditioner paints around the spin axis. Flare
         // precession walks the contact circle a couple of degrees of latitude
@@ -150,9 +156,10 @@ function RollingBall({ sim, width, feetToZ, lift, replayKey }) {
               THREE.MathUtils.degToRad(2.6) *
               Math.min(1.9, Math.max(0.3, (sim.diff || 0.048) / 0.048)) *
               Math.sqrt((sim.revRpm || 350) / 350);
-            // latitude of this ring: start at the equator (great circle) and
-            // migrate toward the axis a step per ring
-            const theta = Math.PI / 2 - ringCount.current * flareStep;
+            // latitude of this ring: the first ring is the great circle that
+            // passes just OUTSIDE the middle-finger insert (left of it for a
+            // righty); each flare ring then walks further away from the grip
+            const theta = Math.PI / 2 + ringCount.current * flareStep;
             ring.quaternion.setFromUnitVectors(Z_AXIS, axisL);
             ring.position.copy(axisL).multiplyScalar(radius * Math.cos(theta));
             ring.scale.setScalar(Math.max(0.4, Math.sin(theta)));
@@ -234,7 +241,17 @@ function Marker({ abs, feet, width, feetToZ, lift, ringColor, badgeClass, childr
   );
 }
 
-export default function BallPath({ sim, width, feetToZ, lift = 0.1, replayKey, showBall = true }) {
+export default function BallPath({
+  sim,
+  width,
+  feetToZ,
+  lift = 0.1,
+  replayKey,
+  showLine = true,
+  showBall = true,
+  playing = true,
+  playSpeed = 1,
+}) {
   const { positions, colors } = useMemo(() => {
     const positions = [];
     const colors = [];
@@ -256,6 +273,8 @@ export default function BallPath({ sim, width, feetToZ, lift = 0.1, replayKey, s
 
   return (
     <group>
+      {showLine && (
+        <>
       <Line points={positions} vertexColors={colors} lineWidth={3} transparent opacity={0.95} />
 
       <Marker
@@ -295,9 +314,19 @@ export default function BallPath({ sim, width, feetToZ, lift = 0.1, replayKey, s
           BP {bp.board.toFixed(1)}보드 · {bp.feet.toFixed(0)}ft
         </Marker>
       )}
+        </>
+      )}
 
       {showBall && (
-        <RollingBall sim={sim} width={width} feetToZ={feetToZ} lift={lift} replayKey={replayKey} />
+        <RollingBall
+          sim={sim}
+          width={width}
+          feetToZ={feetToZ}
+          lift={lift}
+          replayKey={replayKey}
+          playing={playing}
+          playSpeed={playSpeed}
+        />
       )}
     </group>
   );

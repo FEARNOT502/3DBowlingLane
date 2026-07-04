@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Section, Card, Button, Stat, Slider, Segmented, Toggle, Disclosure } from '../ui.jsx';
+import { IconPlay, IconPause } from '../icons.jsx';
 import { POCKET_BOWLER_BOARD } from '../../lib/ballMotion.js';
 
 // ---------------------------------------------------------------------------
@@ -104,7 +105,17 @@ function RecommendCard({ title, subtitle, rec, onApply }) {
   );
 }
 
-export default function PlayTab({ play, onPlayChange, sim, recs, onApplyLine, onReplay }) {
+export default function PlayTab({
+  play,
+  onPlayChange,
+  sim,
+  recs,
+  onApplyLine,
+  playing,
+  onTogglePlay,
+  playSpeed,
+  onPlaySpeedChange,
+}) {
   const activePreset = PRESETS.find(
     (p) => p.speedKmh === play.speedKmh && p.revRpm === play.revRpm
   )?.id;
@@ -226,15 +237,31 @@ export default function PlayTab({ play, onPlayChange, sim, recs, onApplyLine, on
         <p className="mt-2 px-1 text-[11px] text-slate-400 dark:text-slate-500">
           포켓 기준 {POCKET_BOWLER_BOARD}보드 · 진입 스피드 {sim.entrySpeedKmh.toFixed(1)} km/h · 이상적 진입각 4~6°
         </p>
-        <div className="mt-2 space-y-1">
+        <div className="mt-2 space-y-1.5">
           <Toggle
-            label="3D 궤적 표시"
+            label="3D 궤적 표시 (라인·마커만, 볼은 계속 재생)"
             checked={play.showPath}
             onChange={(v) => onPlayChange('showPath', v)}
           />
-          <Button className="w-full" onClick={onReplay}>
-            볼 굴리기 (애니메이션 재생)
+          <Button className="w-full" onClick={onTogglePlay}>
+            {playing ? <IconPause size={13} /> : <IconPlay size={13} />}
+            {playing ? '일시정지' : '재생'}
           </Button>
+          <div className="flex items-center gap-2 px-1">
+            <span className="shrink-0 text-[11px] text-slate-500 dark:text-slate-400">재생 속도</span>
+            <Segmented
+              size="sm"
+              className="flex-1"
+              options={[
+                { id: '0.25', label: '0.25×' },
+                { id: '0.5', label: '0.5×' },
+                { id: '1', label: '1×' },
+                { id: '2', label: '2×' },
+              ]}
+              value={String(playSpeed)}
+              onChange={(v) => onPlaySpeedChange(parseFloat(v))}
+            />
+          </div>
         </div>
       </Section>
 

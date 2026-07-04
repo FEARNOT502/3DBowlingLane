@@ -344,6 +344,8 @@ export default function Lane({
   ballSim,
   showPath,
   replayKey,
+  ballPlaying,
+  ballPlaySpeed,
   sliceFeet,
   showSlice,
 }) {
@@ -377,13 +379,16 @@ export default function Lane({
           <Pins halfWidth={width / 2} />
         </>
       )}
-      {showPath && ballSim && (
+      {ballSim && (
         <BallPath
           sim={ballSim}
           width={width}
           feetToZ={feetToZ}
           lift={pathLift}
           replayKey={replayKey}
+          showLine={showPath}
+          playing={ballPlaying}
+          playSpeed={ballPlaySpeed}
         />
       )}
       {showSlice && <SliceIndicator feet={sliceFeet} width={width} lift={pathLift} />}

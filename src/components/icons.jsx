@@ -138,6 +138,12 @@ export const IconPlay = (p) => (
   </Base>
 );
 
+export const IconPause = (p) => (
+  <Base {...p}>
+    <path d="M8 5v14M16 5v14" />
+  </Base>
+);
+
 export const IconBall = (p) => (
   <Base {...p}>
     <circle cx="12" cy="12" r="9" />

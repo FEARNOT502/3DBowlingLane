@@ -11,7 +11,7 @@ import { simulateShot, recommendLines, DEFAULT_PLAYER } from './lib/ballMotion.j
 import { importPatternFromPdf } from './lib/pdfImport.js';
 import { parseAiImport } from './lib/aiImport.js';
 import { loadSavedPatterns, savePattern, deletePattern } from './lib/storage.js';
-import { IconSun, IconMoon, IconPlay, LogoMark } from './components/icons.jsx';
+import { IconSun, IconMoon, IconPlay, IconPause, LogoMark } from './components/icons.jsx';
 
 function parseTexts(forwardText, reverseText) {
   const forwardPasses = parsePassTable(forwardText, 'forward');
@@ -270,10 +270,12 @@ export default function App() {
   );
   const [play, setPlay] = useState({ ...DEFAULT_PLAYER, showPath: true });
   const [replayKey, setReplayKey] = useState(0);
+  const [playing, setPlaying] = useState(true);
+  const [playSpeed, setPlaySpeed] = useState(1);
   const onPlayChange = useCallback((field, value) => {
     setPlay((p) => ({ ...p, [field]: value }));
   }, []);
-  const onReplay = useCallback(() => setReplayKey((k) => k + 1), []);
+  const onTogglePlay = useCallback(() => setPlaying((p) => !p), []);
 
   const sim = useMemo(
     () => simulateShot(physicsModel.combined, physicsModel.norm.combined, play),
@@ -301,6 +303,7 @@ export default function App() {
     if (!line) return;
     setPlay((p) => ({ ...p, laydownBoard: line.laydownBoard, targetBoard: line.targetBoard }));
     setReplayKey((k) => k + 1);
+    setPlaying(true);
   }, []);
 
   // ---- 분석: cross-section slice ----------------------------------------
@@ -354,7 +357,10 @@ export default function App() {
     sim,
     recs,
     onApplyLine,
-    onReplay,
+    playing,
+    onTogglePlay,
+    playSpeed,
+    onPlaySpeedChange: setPlaySpeed,
     sliceFeet,
     onSliceFeetChange: setSliceFeet,
     sliceData,
@@ -395,9 +401,11 @@ export default function App() {
           widthScale={view.widthScale}
           patternDistance={meta.distance}
           oilMode={view.oilMode}
-          ballSim={sim}
-          showPath={play.showPath && tab === 'play'}
+          ballSim={tab === 'play' ? sim : null}
+          showPath={play.showPath}
           replayKey={replayKey}
+          ballPlaying={playing}
+          ballPlaySpeed={playSpeed}
           sliceFeet={sliceFeet}
           showSlice={tab === 'analysis'}
         />
@@ -440,15 +448,15 @@ export default function App() {
             style={{ bottom: isDesktop ? 20 : SHEET_PEEK + 12 }}
           >
             <Toolbar view={view} onViewChange={onViewChange} />
-            {/* 플레이 탭: replay right on the canvas, no panel round-trip */}
+            {/* 플레이 탭: play/pause right on the canvas, no panel round-trip */}
             {tab === 'play' && (
               <button
                 type="button"
-                onClick={onReplay}
-                title="볼 굴리기 (처음부터 재생)"
+                onClick={onTogglePlay}
+                title={playing ? '일시정지' : '재생'}
                 className="pointer-events-auto grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/30 transition-all hover:bg-blue-500 active:scale-95 dark:bg-sky-500 dark:hover:bg-sky-400"
               >
-                <IconPlay size={15} />
+                {playing ? <IconPause size={15} /> : <IconPlay size={15} />}
               </button>
             )}
           </div>
