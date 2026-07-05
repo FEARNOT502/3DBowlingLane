@@ -26,7 +26,12 @@ function absToX(abs, width) {
 const BALL_RADIUS_FT = BALL_DIAMETER_INCH / 2 / 12; // real radius, for spin rate
 const AXIS_ROTATION_RAD = (55 * Math.PI) / 180; // release axis rotation (tweener-ish)
 const MAX_OIL_RINGS = 12;
-const RING_SPACING_FEET = 3.2; // lay a new track ring every few feet of oiled travel
+// Track flare is driven by REVOLUTIONS, not distance: a real ball lays one oil
+// line per pass and its axis migrates a little each rev, so higher rev rates
+// pack more rings into the same stretch of lane.
+const REVS_PER_RING = 1.5; // fresh track ring every ~1.5 revolutions
+const FLARE_PER_REV = (4 * Math.PI) / 180; // spin-axis migration per rev at full slip
+const MAX_FLARE_RAD = (55 * Math.PI) / 180; // total flare spread cap (outermost track)
 // PAP (positive axis point) sits ~5.5" over from the grip centre — ~73° of arc
 // on an 8.5" ball. Anchoring the spin axis here puts the oil track right next
 // to the finger/thumb holes, where a real ball tracks.
@@ -112,18 +117,24 @@ function RollingBall({ sim, width, feetToZ, lift, replayKey, playing = true, pla
   const progress = useRef(0); // seconds into the loop cycle (pausable, scalable)
   const prev = useRef(null);
   const ringCount = useRef(0);
-  const lastRingFeet = useRef(-Infinity);
+  const revAccum = useRef(0); // revolutions completed so far this shot
+  const lastRingRev = useRef(-Infinity); // rev count at which the last ring was laid
+  const flareArc = useRef(0); // accrued spin-axis migration (rad)
   const oriented = useRef(false); // release orientation applied for this shot
-  const trackAxisLocal = useRef(null); // ball-local PAP the track rings share
+  const trackAxisLocal = useRef(null); // ball-local PAP (release spin axis)
+  const migAxisLocal = useRef(null); // ball-local axis the PAP migrates about
   const radius = (BALL_DIAMETER_INCH / 2) * (width / LANE_WIDTH_INCH);
 
   const resetShot = () => {
     idx.current = 0;
     prev.current = null;
     ringCount.current = 0;
-    lastRingFeet.current = -Infinity;
+    revAccum.current = 0;
+    lastRingRev.current = -Infinity;
+    flareArc.current = 0;
     oriented.current = false;
     trackAxisLocal.current = null;
+    migAxisLocal.current = null;
     ringRefs.current.forEach((m) => m && (m.visible = false));
   };
 
@@ -206,6 +217,13 @@ function RollingBall({ sim, width, feetToZ, lift, replayKey, playing = true, pla
           }
           ball.current.quaternion.copy(q);
           trackAxisLocal.current = pLocal;
+          // Flare migration axis: the PAP walks within the plane spanned by the
+          // PAP and the grip, so every track ring stays perpendicular to an axis
+          // in that one plane — which is what makes the rings meet at two knots.
+          const upL = new THREE.Vector3(0, 1, 0);
+          const migL = new THREE.Vector3().crossVectors(pLocal, upL);
+          if (migL.lengthSq() < 1e-6) migL.set(1, 0, 0);
+          migAxisLocal.current = migL.normalize();
           oriented.current = true;
         }
         // Spin rate: the bowler's rev rate while slipping, surface-matching
@@ -215,35 +233,44 @@ function RollingBall({ sim, width, feetToZ, lift, replayKey, playing = true, pla
           (1 - slip) * (speed / BALL_RADIUS_FT);
         ball.current.rotateOnWorldAxis(spinAxis, omega * dt);
 
-        // Oil track: rings the conditioner paints around the spin axis. Flare
-        // precession walks the contact circle a couple of degrees of latitude
-        // per revolution set — scaled by Diff (flare potential) and rev rate —
-        // so the track reads as a CLEAN stack of parallel rings (like a real
-        // ball's flare lines), not a fan crossing at the poles.
+        // Count revolutions and advance the spin-axis migration (flare). The
+        // axis migrates only while the ball still slips, so migration slows to a
+        // stop as it rolls out — the rings converge to the roll-end knot. Diff
+        // sets how far the axis walks in total (flare potential).
+        const dRevs = (omega * dt) / (2 * Math.PI);
+        revAccum.current += dRevs;
+        const diffFactor = THREE.MathUtils.clamp((sim.diff || 0.048) / 0.048, 0.3, 1.9);
+        flareArc.current = Math.min(
+          MAX_FLARE_RAD,
+          flareArc.current + FLARE_PER_REV * diffFactor * slip * dRevs
+        );
+
+        // Oil track: one line per pass. Each ring is the great circle the ball
+        // contacts on — perpendicular to the CURRENT (migrated) spin axis. Since
+        // successive axes all lie in one plane, every ring passes through the
+        // same two points: the real oil-track "bowtie", not a parallel fan. New
+        // rings stop once the ball rolls out (no slip = no flare).
         if (
           oil > 0.06 &&
-          feet - lastRingFeet.current >= RING_SPACING_FEET &&
+          slip > 0.05 &&
+          revAccum.current - lastRingRev.current >= REVS_PER_RING &&
           ringCount.current < MAX_OIL_RINGS
         ) {
           const ring = ringRefs.current[ringCount.current];
-          if (ring && trackAxisLocal.current) {
-            const axisL = trackAxisLocal.current;
-            const flareStep =
-              THREE.MathUtils.degToRad(2.6) *
-              Math.min(1.9, Math.max(0.3, (sim.diff || 0.048) / 0.048)) *
-              Math.sqrt((sim.revRpm || 350) / 350);
-            // latitude of this ring: the first ring is the great circle that
-            // passes just OUTSIDE the middle-finger insert (left of it for a
-            // righty); each flare ring then walks further away from the grip
-            const theta = Math.PI / 2 + ringCount.current * flareStep;
+          if (ring && trackAxisLocal.current && migAxisLocal.current) {
+            const sign = sim.hand === 'L' ? -1 : 1;
+            const axisL = trackAxisLocal.current
+              .clone()
+              .applyAxisAngle(migAxisLocal.current, sign * flareArc.current)
+              .normalize();
             ring.quaternion.setFromUnitVectors(Z_AXIS, axisL);
-            ring.position.copy(axisL).multiplyScalar(radius * Math.cos(theta));
-            ring.scale.setScalar(Math.max(0.4, Math.sin(theta)));
+            ring.position.set(0, 0, 0);
+            ring.scale.setScalar(1);
             // fresher rings carry more conditioner — older ones read fainter
             ring.material.opacity = 0.45 + 0.45 * (ringCount.current / MAX_OIL_RINGS);
             ring.visible = true;
             ringCount.current += 1;
-            lastRingFeet.current = feet;
+            lastRingRev.current = revAccum.current;
           }
         }
       }
