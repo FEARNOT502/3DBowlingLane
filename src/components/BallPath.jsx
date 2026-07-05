@@ -35,6 +35,75 @@ const Z_AXIS = new THREE.Vector3(0, 0, 1);
 
 const UP = new THREE.Vector3(0, 1, 0);
 
+// Marbled coverstock texture (equirectangular, wraps the sphere). Seeded so
+// every ball renders the same swirl.
+function makeMarbleTexture() {
+  const W = 1024;
+  const H = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  let seed = 20260705;
+  const rnd = () => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed / 4294967296;
+  };
+
+  // deep blue base with a subtle vertical shade
+  const base = ctx.createLinearGradient(0, 0, 0, H);
+  base.addColorStop(0, '#1e3a8a');
+  base.addColorStop(0.5, '#1d4ed8');
+  base.addColorStop(1, '#1e40af');
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, W, H);
+
+  // swirled veins in lighter/darker blues and a few pale streaks. Drawing the
+  // whole pass twice, offset by W, keeps the horizontal wrap seam invisible.
+  const veins = [
+    { color: 'rgba(96,165,250,0.5)', width: [6, 26], n: 9 },
+    { color: 'rgba(23,37,84,0.55)', width: [8, 30], n: 8 },
+    { color: 'rgba(147,197,253,0.35)', width: [3, 12], n: 7 },
+    { color: 'rgba(224,242,254,0.22)', width: [2, 7], n: 6 },
+  ];
+  for (const v of veins) {
+    for (let i = 0; i < v.n; i += 1) {
+      const x0 = rnd() * W;
+      const y0 = rnd() * H;
+      const segs = 3 + Math.floor(rnd() * 3);
+      const lw = v.width[0] + rnd() * (v.width[1] - v.width[0]);
+      for (const off of [0, -W, W]) {
+        ctx.beginPath();
+        ctx.moveTo(x0 + off, y0);
+        let px = x0;
+        let py = y0;
+        // rewind the generator per copy so all three copies share one shape
+        // (px/py restart from x0/y0 above for the same reason)
+        const s0 = seed;
+        for (let sIdx = 0; sIdx < segs; sIdx += 1) {
+          const cx = px + (rnd() - 0.5) * 340;
+          const cy = py + (rnd() - 0.5) * 240;
+          px += (rnd() - 0.5) * 420;
+          py += (rnd() - 0.5) * 260;
+          ctx.quadraticCurveTo(cx + off, cy, px + off, py);
+        }
+        if (off !== W) seed = s0;
+        ctx.strokeStyle = v.color;
+        ctx.lineWidth = lw;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      }
+    }
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}
+
 function RollingBall({ sim, width, feetToZ, lift, replayKey, playing = true, playSpeed = 1 }) {
   const group = useRef();
   const ball = useRef();
@@ -102,9 +171,11 @@ function RollingBall({ sim, width, feetToZ, lift, replayKey, playing = true, pla
         // Spin axis: at release the axis is ROTATED toward the travel direction
         // (side rotation — that's what makes the ball hook); as slip converts to
         // roll the axis migrates to pure end-over-end, exactly like a real ball.
+        // Forward roll about up×dir (right-hand rule: moving -z needs ω along
+        // -x, or the ball visibly spins backwards).
         const dir = delta.normalize();
-        const rollAxis = dir.clone().cross(UP).normalize();
-        const sign = sim.hand === 'L' ? 1 : -1;
+        const rollAxis = UP.clone().cross(dir).normalize();
+        const sign = sim.hand === 'L' ? -1 : 1;
         const spinAxis = rollAxis
           .clone()
           .applyAxisAngle(UP, sign * AXIS_ROTATION_RAD * slip)
@@ -168,6 +239,8 @@ function RollingBall({ sim, width, feetToZ, lift, replayKey, playing = true, pla
             ring.quaternion.setFromUnitVectors(Z_AXIS, axisL);
             ring.position.copy(axisL).multiplyScalar(radius * Math.cos(theta));
             ring.scale.setScalar(Math.max(0.4, Math.sin(theta)));
+            // fresher rings carry more conditioner — older ones read fainter
+            ring.material.opacity = 0.45 + 0.45 * (ringCount.current / MAX_OIL_RINGS);
             ring.visible = true;
             ringCount.current += 1;
             lastRingFeet.current = feet;
@@ -180,21 +253,29 @@ function RollingBall({ sim, width, feetToZ, lift, replayKey, playing = true, pla
   });
 
   // Grip layout: middle/ring finger inserts side by side, thumb hole apart
-  // below them — they make the roll (and flare) easy to read.
+  // below them. Flat discs sitting on the surface — drilled holes don't stick
+  // OUT of a real ball.
   const holes = useMemo(
-    () => [
-      { dir: new THREE.Vector3(0.14, 0.97, 0.2).normalize(), r: 0.075 }, // 중지
-      { dir: new THREE.Vector3(-0.14, 0.97, 0.2).normalize(), r: 0.075 }, // 약지
-      { dir: new THREE.Vector3(0, 0.78, -0.63).normalize(), r: 0.1 }, // 엄지
-    ],
+    () =>
+      [
+        { dir: new THREE.Vector3(0.14, 0.97, 0.2).normalize(), r: 0.075 }, // 중지
+        { dir: new THREE.Vector3(-0.14, 0.97, 0.2).normalize(), r: 0.075 }, // 약지
+        { dir: new THREE.Vector3(0, 0.78, -0.63).normalize(), r: 0.1 }, // 엄지
+      ].map((h) => ({
+        ...h,
+        quat: new THREE.Quaternion().setFromUnitVectors(Z_AXIS, h.dir),
+      })),
     []
   );
+
+  const marbleTex = useMemo(() => makeMarbleTexture(), []);
+  useEffect(() => () => marbleTex.dispose(), [marbleTex]);
 
   return (
     <group ref={group}>
       <mesh ref={ball}>
-        <sphereGeometry args={[radius, 32, 32]} />
-        <meshStandardMaterial color="#1d4ed8" roughness={0.15} metalness={0.15} />
+        <sphereGeometry args={[radius, 48, 48]} />
+        <meshStandardMaterial map={marbleTex} roughness={0.14} metalness={0.12} />
         {/* oil track rings — hidden until the ball actually rolls through oil */}
         {Array.from({ length: MAX_OIL_RINGS }, (_, i) => (
           <mesh
@@ -217,9 +298,13 @@ function RollingBall({ sim, width, feetToZ, lift, replayKey, playing = true, pla
           </mesh>
         ))}
         {holes.map((h, i) => (
-          <mesh key={`h${i}`} position={h.dir.clone().multiplyScalar(radius * 0.97).toArray()}>
-            <sphereGeometry args={[radius * h.r, 10, 10]} />
-            <meshStandardMaterial color="#0f172a" roughness={0.6} />
+          <mesh
+            key={`h${i}`}
+            position={h.dir.clone().multiplyScalar(radius * 1.002).toArray()}
+            quaternion={h.quat}
+          >
+            <circleGeometry args={[radius * h.r, 24]} />
+            <meshStandardMaterial color="#0b1220" roughness={0.45} />
           </mesh>
         ))}
       </mesh>
