@@ -43,6 +43,11 @@ export const DEFAULT_PLAYER = {
   rg: 2.5,
   diff: 0.048,
   psa: 0.015,
+  // Release axis geometry. Rotation = how much the axis is turned toward the
+  // travel line (side rotation → hook length). Tilt = how much the axis leans
+  // up out of the lane (spiller) → LESS flare, earlier roll.
+  axisRotDeg: 55,
+  axisTiltDeg: 15,
   laydownBoard: 17,
   targetBoard: 10,
 };
@@ -87,7 +92,7 @@ function frictionFromOil(oil) {
 
 // Ball-spec factors --------------------------------------------------------
 
-function specFactors({ revRpm, rg, diff, psa, speedKmh }) {
+function specFactors({ revRpm, rg, diff, psa, speedKmh, axisRotDeg, axisTiltDeg }) {
   const revN = clamp(revRpm / 350, 0.3, 2.2);
   // RG 2.46 (low, early) .. 2.60+ (high, long): scales how much slip the ball
   // starts with, i.e. how long it takes friction to stand it up.
@@ -96,12 +101,23 @@ function specFactors({ revRpm, rg, diff, psa, speedKmh }) {
   const diffN = clamp(diff / 0.048, 0.1, 1.9);
   // PSA (intermediate diff): 0 = smooth benchmark arc, 0.030+ = violent flip.
   const psaN = clamp((psa || 0) / 0.015, 0, 2.7);
+  // Axis rotation 55° and tilt 15° are the tweener REFERENCE: both factors below
+  // are centred to 1.0 there, so the default release reproduces the original
+  // calibration exactly and only deviating from 55°/15° changes the shot.
+  // More side rotation = more revs go sideways → more hook, stands up a touch
+  // later. More tilt = "spiller" → less flare, earlier roll, less hook.
+  const axisRotN = clamp((axisRotDeg ?? 55) / 55, 0.15, 1.75); // 1.0 at 55°
+  const tiltRel = clamp(((axisTiltDeg ?? 15) - 15) / 90, -0.17, 0.5); // 0 at 15°
   const v0 = Math.max(8, speedKmh * KMH_TO_FTS);
   return {
     v0,
     // characteristic slip "budget" — bigger = longer skid phase
-    slipBudget: (0.62 + 0.55 * rgN) * (v0 / 27.4),
-    hookMul: Math.pow(revN, 0.9) * (0.45 + 0.55 * diffN),
+    slipBudget: (0.62 + 0.55 * rgN) * (v0 / 27.4) * (1 + 0.12 * (axisRotN - 1)),
+    hookMul:
+      Math.pow(revN, 0.9) *
+      (0.45 + 0.55 * diffN) *
+      (0.6 + 0.4 * axisRotN) *
+      (1 - 0.6 * tiltRel),
     // hook-force shape vs remaining slip: s^exp. Small exponent (high PSA)
     // keeps the force at full strength until slip runs out -> sharp break.
     shapeExp: clamp(1.7 - 0.75 * psaN, 0.35, 1.7),
@@ -179,6 +195,8 @@ export function simulateShot(grid, norm, player) {
     hand: p.hand,
     revRpm: p.revRpm,
     diff: p.diff,
+    axisRotDeg: p.axisRotDeg ?? 55,
+    axisTiltDeg: p.axisTiltDeg ?? 15,
     entryBoard,
     entryAngleDeg,
     entrySpeedKmh: last.speed / KMH_TO_FTS,

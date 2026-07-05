@@ -7,9 +7,22 @@ import { Section, Toggle, Slider, Segmented } from '../ui.jsx';
 // The floating toolbar mirrors the most-used controls; this tab is the full set.
 // ---------------------------------------------------------------------------
 
-export default function ViewTab({ view, onViewChange, layer }) {
+export default function ViewTab({ view, onViewChange, layer, onCameraPreset }) {
   return (
     <div className="pb-4">
+      <Section title="카메라 시점" hint="원터치로 시점을 이동합니다. 이후 드래그로 자유롭게 회전할 수 있어요.">
+        <Segmented
+          options={[
+            { id: 'default', label: '기본' },
+            { id: 'pov', label: '볼러 시점' },
+            { id: 'side', label: '측면' },
+            { id: 'top', label: '탑다운' },
+          ]}
+          value=""
+          onChange={(id) => onCameraPreset?.(id)}
+        />
+      </Section>
+
       <Section
         title="오일 표시 모드"
         hint="패턴표 = 인쇄된 그래프 스타일 · 실제 레인 = PBA 중계 화면 느낌"
@@ -43,6 +56,15 @@ export default function ViewTab({ view, onViewChange, layer }) {
         <div className="mt-3 px-2">
           <Legend layer={layer} />
         </div>
+      </Section>
+
+      <Section title="플레이 오버레이" hint="플레이 탭에서 표시됩니다.">
+        <Toggle
+          label="볼 인스펙터 창 (우상단)"
+          color="#38bdf8"
+          checked={view.showInspector}
+          onChange={(v) => onViewChange('showInspector', v)}
+        />
       </Section>
 
       <Section title="시각화 옵션">

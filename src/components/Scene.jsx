@@ -5,7 +5,8 @@ import * as THREE from 'three';
 import Lane from './Lane.jsx';
 
 // WASD / QE panning on top of OrbitControls. W/S move along the view direction
-// (projected onto the lane), A/D strafe, Q/E (and Space/Shift) raise/lower.
+// (projected onto the lane), A/D strafe, E/Shift raise/lower. Space is reserved
+// for play/pause (handled in App), so it is deliberately NOT a camera key.
 function WasdControls() {
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls);
@@ -46,7 +47,7 @@ function WasdControls() {
     if (k.KeyS) move.sub(fwd);
     if (k.KeyD) move.add(right);
     if (k.KeyA) move.sub(right);
-    if (k.KeyE || k.Space) move.y += 1;
+    if (k.KeyE) move.y += 1;
     if (k.KeyQ || k.ShiftLeft || k.ShiftRight) move.y -= 1;
 
     if (move.lengthSq() > 0) {
@@ -60,6 +61,46 @@ function WasdControls() {
   return null;
 }
 
+// Camera viewpoints (world units; foul line sits at z≈20, pins at z≈-20).
+// `default` is the opening 3/4 view; the rest are one-tap presets.
+export const CAMERA_PRESETS = {
+  default: { pos: [0, 17, 40], tgt: [0, 0, 2] },
+  pov: { pos: [0, 4.6, 31], tgt: [0, 1.6, -18] }, // bowler's eye, down the lane
+  side: { pos: [34, 9, 7], tgt: [0, 0, -6] }, // side-on, reads the hook shape
+  top: { pos: [0, 54, 2.2], tgt: [0, 0, 2] }, // top-down, reads the line
+};
+
+// Animates the camera toward a preset pose when `cmd` changes, then hands
+// control back to OrbitControls. `cmd` is an object so re-selecting the same
+// preset (new identity) re-triggers the move.
+function CameraRig({ cmd }) {
+  const camera = useThree((s) => s.camera);
+  const controls = useThree((s) => s.controls);
+  const goal = useRef(null);
+
+  useEffect(() => {
+    if (!cmd || !cmd.id) return;
+    const p = CAMERA_PRESETS[cmd.id];
+    if (!p) return;
+    goal.current = {
+      pos: new THREE.Vector3(...p.pos),
+      tgt: new THREE.Vector3(...p.tgt),
+    };
+  }, [cmd]);
+
+  useFrame(() => {
+    const g = goal.current;
+    if (!g || !controls) return;
+    camera.position.lerp(g.pos, 0.1);
+    controls.target.lerp(g.tgt, 0.1);
+    controls.update();
+    if (camera.position.distanceTo(g.pos) < 0.08 && controls.target.distanceTo(g.tgt) < 0.08) {
+      goal.current = null;
+    }
+  });
+  return null;
+}
+
 // Studio backdrop per theme: bright airy grey for the light UI, the original
 // deep navy for dark mode.
 const BACKDROPS = {
@@ -67,7 +108,7 @@ const BACKDROPS = {
   dark: { bg: '#070b15', floor: '#070b15', ground: '#120b04', ambient: 0.6 },
 };
 
-export default function Scene({ theme = 'light', ...props }) {
+export default function Scene({ theme = 'light', cameraCmd, ...props }) {
   const bd = BACKDROPS[theme] || BACKDROPS.light;
   return (
     <Canvas
@@ -106,6 +147,7 @@ export default function Scene({ theme = 'light', ...props }) {
         target={[0, 0, 2]}
       />
       <WasdControls />
+      <CameraRig cmd={cameraCmd} />
     </Canvas>
   );
 }

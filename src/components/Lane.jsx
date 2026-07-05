@@ -346,6 +346,8 @@ export default function Lane({
   replayKey,
   ballPlaying,
   ballPlaySpeed,
+  ballClockRef,
+  ballScrub = null,
   sliceFeet,
   showSlice,
 }) {
@@ -389,6 +391,8 @@ export default function Lane({
           showLine={showPath}
           playing={ballPlaying}
           playSpeed={ballPlaySpeed}
+          clockRef={ballClockRef}
+          scrub={ballScrub}
         />
       )}
       {showSlice && <SliceIndicator feet={sliceFeet} width={width} lift={pathLift} />}

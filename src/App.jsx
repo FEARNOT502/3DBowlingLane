@@ -1,16 +1,17 @@
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import Scene from './components/Scene.jsx';
+import BallInspector from './components/BallInspector.jsx';
 import ControlPanel, { PanelTabBar } from './components/ControlPanel.jsx';
 import BottomSheet, { SHEET_PEEK } from './components/BottomSheet.jsx';
 import Toolbar from './components/Toolbar.jsx';
 import { SAMPLE_PATTERNS, JINSEUNG_A } from './data/samplePatterns.js';
 import { parsePassTable, totalOilMl } from './lib/parsePattern.js';
-import { buildOilModel, selectGrid } from './lib/oilModel.js';
+import { buildOilModel, selectGrid, ageOilGrid, trackFromPoints } from './lib/oilModel.js';
 import { computeStats, boardChartData, sliceChartData } from './lib/analysis.js';
 import { simulateShot, recommendLines, DEFAULT_PLAYER } from './lib/ballMotion.js';
 import { importPatternFromPdf } from './lib/pdfImport.js';
 import { parseAiImport } from './lib/aiImport.js';
-import { loadSavedPatterns, savePattern, deletePattern } from './lib/storage.js';
+import { loadSavedPatterns, savePattern, deletePattern, loadSetups, saveSetup, deleteSetup } from './lib/storage.js';
 import { IconSun, IconMoon, IconPlay, IconPause, LogoMark } from './components/icons.jsx';
 
 function parseTexts(forwardText, reverseText) {
@@ -108,6 +109,8 @@ export default function App() {
     showOil: true,
     showLabels: true,
     showPins: true,
+    // 플레이 오버레이
+    showInspector: true,
     // Kegel 시트의 forward 테이블은 파울라인(0ft)에서 시작하므로 그대로가
     // 올바른 방향 — 반전은 옵션으로만 남긴다.
     flipPattern: false,
@@ -268,24 +271,80 @@ export default function App() {
       }),
     [forwardPasses, reversePasses, view.flipPattern, meta.distance, meta.reverseBrushDrop]
   );
-  const [play, setPlay] = useState({ ...DEFAULT_PLAYER, showPath: true });
+  const [play, setPlay] = useState({ ...DEFAULT_PLAYER, showPath: true, shots: 0 });
   const [replayKey, setReplayKey] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [playSpeed, setPlaySpeed] = useState(1);
+  const [scrub, setScrub] = useState(null); // null = live; 0..1 = paused at fraction
+  // Shared playback clock so the top-right ball inspector stays in lock-step with
+  // the ball rolling down the lane (both read this same mutable ref).
+  const shotClock = useRef({ t: 0, T: 1 });
   const onPlayChange = useCallback((field, value) => {
     setPlay((p) => ({ ...p, [field]: value }));
   }, []);
-  const onTogglePlay = useCallback(() => setPlaying((p) => !p), []);
+  const onTogglePlay = useCallback(() => {
+    setScrub(null);
+    setPlaying((p) => !p);
+  }, []);
+  const onScrubChange = useCallback((v) => {
+    if (v == null) {
+      setScrub(null);
+      setPlaying(true);
+    } else {
+      setScrub(v);
+      setPlaying(false);
+    }
+  }, []);
 
-  const sim = useMemo(
+  const freshSim = useMemo(
     () => simulateShot(physicsModel.combined, physicsModel.norm.combined, play),
     [physicsModel, play]
   );
-  // Recommendations only depend on the bowler/ball spec, not the current line.
+
+  // Oil transition: breakdown + carrydown follow a line, but the track is a
+  // FROZEN SNAPSHOT (transitionTrack) captured when the transition is first
+  // applied — NOT the live aim. So moving the spot or applying a recommended
+  // line doesn't reshuffle the oil that's already been pushed; the ball just
+  // reacts to the standing lane condition. The 초기화 button clears it.
+  const [transitionTrack, setTransitionTrack] = useState(null);
+  const onShotsChange = useCallback(
+    (v) => {
+      setPlay((p) => ({ ...p, shots: v }));
+      if (v <= 0) setTransitionTrack(null); // re-arm at fresh
+      else setTransitionTrack((cur) => cur || trackFromPoints(freshSim.points));
+    },
+    [freshSim]
+  );
+  const onResetTransition = useCallback(() => {
+    setTransitionTrack(null);
+    setPlay((p) => ({ ...p, shots: 0 }));
+  }, []);
+
+  const agedGrid = useMemo(
+    () => ageOilGrid(physicsModel.combined, physicsModel.norm.combined, play.shots, Number(meta.distance) || null, transitionTrack),
+    [physicsModel, play.shots, meta.distance, transitionTrack]
+  );
+
+  const sim = useMemo(
+    () => (play.shots > 0 ? simulateShot(agedGrid, physicsModel.norm.combined, play) : freshSim),
+    [play.shots, agedGrid, physicsModel.norm.combined, play, freshSim]
+  );
+
+  // Realistic mode SHOWS the oil moving: age the displayed grid along the frozen
+  // track too, so breakdown (drier heads on the line) and carrydown (film pushed
+  // past the pattern) are visible on the lane. Sheet mode stays as-printed.
+  const displayGrid = useMemo(() => {
+    if (view.oilMode === 'realistic' && play.shots > 0) {
+      return ageOilGrid(selected.grid, selected.max, play.shots, Number(meta.distance) || null, transitionTrack);
+    }
+    return selected.grid;
+  }, [selected.grid, selected.max, view.oilMode, play.shots, meta.distance, transitionTrack]);
+  // Recommendations depend on the bowler/ball spec (incl. release axis) and the
+  // aged pattern — not the current line.
   const recs = useMemo(
     () =>
       recommendLines(
-        physicsModel.combined,
+        agedGrid,
         physicsModel.norm.combined,
         {
           hand: play.hand,
@@ -294,17 +353,74 @@ export default function App() {
           rg: play.rg,
           diff: play.diff,
           psa: play.psa,
+          axisRotDeg: play.axisRotDeg,
+          axisTiltDeg: play.axisTiltDeg,
         },
         Number(meta.distance) || null
       ),
-    [physicsModel, play.hand, play.speedKmh, play.revRpm, play.rg, play.diff, play.psa, meta.distance]
+    [agedGrid, physicsModel.norm.combined, play.hand, play.speedKmh, play.revRpm, play.rg, play.diff, play.psa, play.axisRotDeg, play.axisTiltDeg, meta.distance]
   );
   const onApplyLine = useCallback((line) => {
     if (!line) return;
     setPlay((p) => ({ ...p, laydownBoard: line.laydownBoard, targetBoard: line.targetBoard }));
     setReplayKey((k) => k + 1);
+    setScrub(null);
     setPlaying(true);
   }, []);
+
+  // ---- Camera presets -----------------------------------------------------
+  const [cameraCmd, setCameraCmd] = useState(null);
+  const onCameraPreset = useCallback((id) => setCameraCmd({ id, n: Date.now() }), []);
+
+  // ---- Arsenal (saved spec + line setups) ---------------------------------
+  const [setups, setSetups] = useState(() => loadSetups());
+  const onSaveSetup = useCallback(
+    (name) => {
+      setSetups(
+        saveSetup({
+          name,
+          spec: {
+            hand: play.hand,
+            speedKmh: play.speedKmh,
+            revRpm: play.revRpm,
+            rg: play.rg,
+            diff: play.diff,
+            psa: play.psa,
+            axisRotDeg: play.axisRotDeg,
+            axisTiltDeg: play.axisTiltDeg,
+          },
+          line: { laydownBoard: play.laydownBoard, targetBoard: play.targetBoard },
+        })
+      );
+    },
+    [play]
+  );
+  const onLoadSetup = useCallback((id) => {
+    setSetups((cur) => {
+      const s = cur.find((x) => x.id === id);
+      if (s) {
+        setPlay((p) => ({ ...p, ...s.spec, ...s.line }));
+        setReplayKey((k) => k + 1);
+        setScrub(null);
+        setPlaying(true);
+      }
+      return cur;
+    });
+  }, []);
+  const onDeleteSetup = useCallback((id) => setSetups(deleteSetup(id)), []);
+
+  // Spacebar = play/pause on the play tab (not while typing in a field).
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.code !== 'Space') return;
+      if (tab !== 'play') return;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+      e.preventDefault();
+      onTogglePlay();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [tab, onTogglePlay]);
 
   // ---- 분석: cross-section slice ----------------------------------------
   const [sliceFeet, setSliceFeet] = useState(20);
@@ -361,6 +477,15 @@ export default function App() {
     onTogglePlay,
     playSpeed,
     onPlaySpeedChange: setPlaySpeed,
+    scrub,
+    onScrubChange,
+    onShotsChange,
+    onResetTransition,
+    setups,
+    onSaveSetup,
+    onLoadSetup,
+    onDeleteSetup,
+    onCameraPreset,
     sliceFeet,
     onSliceFeetChange: setSliceFeet,
     sliceData,
@@ -387,7 +512,8 @@ export default function App() {
       <main className="relative min-w-0 flex-1">
         <Scene
           theme={theme}
-          grid={selected.grid}
+          cameraCmd={cameraCmd}
+          grid={displayGrid}
           max={selected.max}
           layer={selected.layer}
           components={selected.components}
@@ -406,9 +532,23 @@ export default function App() {
           replayKey={replayKey}
           ballPlaying={playing}
           ballPlaySpeed={playSpeed}
+          ballClockRef={shotClock}
+          ballScrub={scrub}
           sliceFeet={sliceFeet}
           showSlice={tab === 'analysis'}
         />
+
+        {/* Ball inspector — isolated spinning ball + track flare, top-right.
+            On mobile it drops below the floating theme toggle so they don't overlap. */}
+        {tab === 'play' && view.showInspector && (
+          <BallInspector
+            sim={sim}
+            clockRef={shotClock}
+            theme={theme}
+            className={isDesktop ? 'right-4 top-4' : 'right-3 top-[52px]'}
+            onClose={() => onViewChange('showInspector', false)}
+          />
+        )}
 
         {/* Pattern summary card — compact infographic strip */}
         <div className="pointer-events-none absolute left-4 top-4 max-w-[70vw] rounded-lg border border-slate-200 bg-white/90 px-4 py-2.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-900/80 lg:left-5 lg:top-5">

@@ -1,13 +1,17 @@
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { Line, Html } from '@react-three/drei';
-import { BOARD_COUNT, LANE_WIDTH_INCH } from '../lib/laneConstants.js';
+import { BOARD_COUNT, LANE_WIDTH_INCH, BOARD_WIDTH_FEET } from '../lib/laneConstants.js';
 
 // ---------------------------------------------------------------------------
 // 3D shot overlay: the simulated trajectory coloured by phase (skid / hook /
 // roll), a breakpoint marker, and a regulation-size ball that rolls the line.
 // Board -> world x uses the same mapping as the oil texture (board 1 = -x).
+//
+// The ball's rotation and its accumulating oil-track flare are shared with the
+// top-right inspector window through <FlareBall> + a common playback clock ref,
+// so the inspector always shows exactly the current shot's spin and flare.
 // ---------------------------------------------------------------------------
 
 const PHASE_COLORS = {
@@ -24,7 +28,6 @@ function absToX(abs, width) {
 }
 
 const BALL_RADIUS_FT = BALL_DIAMETER_INCH / 2 / 12; // real radius, for spin rate
-const AXIS_ROTATION_RAD = (55 * Math.PI) / 180; // release axis rotation (tweener-ish)
 const MAX_OIL_RINGS = 12;
 // Track flare is driven by REVOLUTIONS, not distance: a real ball lays one oil
 // line per pass and its axis migrates a little each rev, so higher rev rates
@@ -37,12 +40,12 @@ const MAX_FLARE_RAD = (55 * Math.PI) / 180; // total flare spread cap (outermost
 // to the finger/thumb holes, where a real ball tracks.
 const PAP_FROM_GRIP_RAD = (73 * Math.PI) / 180;
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
-
 const UP = new THREE.Vector3(0, 1, 0);
+const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
 // Marbled coverstock texture (equirectangular, wraps the sphere). Seeded so
 // every ball renders the same swirl.
-function makeMarbleTexture() {
+export function makeMarbleTexture() {
   const W = 1024;
   const H = 512;
   const canvas = document.createElement('canvas');
@@ -83,8 +86,6 @@ function makeMarbleTexture() {
         ctx.moveTo(x0 + off, y0);
         let px = x0;
         let py = y0;
-        // rewind the generator per copy so all three copies share one shape
-        // (px/py restart from x0/y0 above for the same reason)
         const s0 = seed;
         for (let sIdx = 0; sIdx < segs; sIdx += 1) {
           const cx = px + (rnd() - 0.5) * 340;
@@ -109,232 +110,268 @@ function makeMarbleTexture() {
   return tex;
 }
 
-function RollingBall({ sim, width, feetToZ, lift, replayKey, playing = true, playSpeed = 1 }) {
-  const group = useRef();
+// ---------------------------------------------------------------------------
+// Flare model — deterministic pass over the simulated shot.
+// ---------------------------------------------------------------------------
+// One oil ring per ~1.5 revs while the ball still slips through oil. Each ring
+// is the great circle perpendicular to the CURRENT (migrated) spin axis; since
+// successive axes lie in one plane, the rings pass through the same two points
+// — the real oil-track "bowtie". Returned in BALL-LOCAL space with the time the
+// ring is laid, so both the rolling ball and the inspector can reveal it in sync
+// and scrubbing can show exactly the rings laid so far.
+export function computeFlareRings(sim) {
+  const rings = [];
+  if (!sim || !sim.points || sim.points.length < 2) return rings;
+  const hand = sim.hand;
+  const sign = hand === 'L' ? -1 : 1;
+  const revRpm = sim.revRpm || 350;
+  const diff = sim.diff || 0.048;
+  // centred so 15° tilt = the reference flare; more tilt = less flare.
+  const tiltRel = clamp(((sim.axisTiltDeg ?? 15) - 15) / 90, -0.17, 0.5);
+  // ball-local PAP (release spin axis) and the axis it migrates about.
+  const pLocal = new THREE.Vector3(
+    (hand === 'L' ? 1 : -1) * Math.sin(PAP_FROM_GRIP_RAD),
+    Math.cos(PAP_FROM_GRIP_RAD),
+    0
+  ).normalize();
+  const migL = new THREE.Vector3().crossVectors(pLocal, UP);
+  if (migL.lengthSq() < 1e-6) migL.set(1, 0, 0);
+  migL.normalize();
+  // higher axis tilt = less flare (spillier release rolls out sooner).
+  const diffFactor = clamp(diff / 0.048, 0.3, 1.9) * (1 - 0.6 * tiltRel);
+
+  let revAccum = 0;
+  let lastRingRev = -Infinity;
+  let flareArc = 0;
+  const pts = sim.points;
+  for (let i = 1; i < pts.length; i += 1) {
+    const a = pts[i - 1];
+    const b = pts[i];
+    const dt = b.t - a.t;
+    if (dt <= 0) continue;
+    const slip = (a.slip + b.slip) / 2;
+    const speed = (a.speed + b.speed) / 2;
+    const oil = ((a.oil || 0) + (b.oil || 0)) / 2;
+    const omega = slip * ((revRpm * Math.PI * 2) / 60) + (1 - slip) * (speed / BALL_RADIUS_FT);
+    const dRevs = (omega * dt) / (2 * Math.PI);
+    revAccum += dRevs;
+    flareArc = Math.min(MAX_FLARE_RAD, flareArc + FLARE_PER_REV * diffFactor * slip * dRevs);
+    if (
+      oil > 0.06 &&
+      slip > 0.05 &&
+      revAccum - lastRingRev >= REVS_PER_RING &&
+      rings.length < MAX_OIL_RINGS
+    ) {
+      const axisL = pLocal.clone().applyAxisAngle(migL, sign * flareArc).normalize();
+      const q = new THREE.Quaternion().setFromUnitVectors(Z_AXIS, axisL);
+      rings.push({ quaternion: q, t: b.t, opacity: 0.55 + 0.4 * (rings.length / MAX_OIL_RINGS) });
+      lastRingRev = revAccum;
+    }
+  }
+  return rings;
+}
+
+// Interpolated shot state at time t, plus the (canonical, real-proportion)
+// travel direction used to build the spin axis.
+function stateAt(pts, t) {
+  let i = 0;
+  while (i < pts.length - 2 && pts[i + 1].t <= t) i += 1;
+  const a = pts[i];
+  const b = pts[Math.min(i + 1, pts.length - 1)];
+  const f = b.t > a.t ? (t - a.t) / (b.t - a.t) : 0;
+  const slip = a.slip + (b.slip - a.slip) * f;
+  const speed = a.speed + (b.speed - a.speed) * f;
+  // real-proportion tangent: board step scaled to feet so lateral vs down-lane
+  // stay physical regardless of the view's width stretch.
+  const dx = (b.abs - a.abs) * BOARD_WIDTH_FEET;
+  const dz = -(b.feet - a.feet);
+  const dir = new THREE.Vector3(dx, 0, dz);
+  return { slip, speed, dir: dir.lengthSq() > 1e-9 ? dir.normalize() : null };
+}
+
+function spinAxisFrom(dir, slip, hand, axisRotRad) {
+  const rollAxis = UP.clone().cross(dir).normalize();
+  const sign = hand === 'L' ? -1 : 1;
+  return rollAxis.applyAxisAngle(UP, sign * axisRotRad * slip).normalize();
+}
+
+// Orient a ball mesh so its local PAP lies on the release spin axis with the
+// grip facing up — exactly how a real hand delivers it, so the oil track forms
+// beside the grip.
+function orientBall(mesh, spinAxis, hand) {
+  const pLocal = new THREE.Vector3(
+    (hand === 'L' ? 1 : -1) * Math.sin(PAP_FROM_GRIP_RAD),
+    Math.cos(PAP_FROM_GRIP_RAD),
+    0
+  ).normalize();
+  const q = new THREE.Quaternion().setFromUnitVectors(pLocal, spinAxis);
+  const g = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+  const gp = g.clone().addScaledVector(spinAxis, -g.dot(spinAxis));
+  const upp = UP.clone().addScaledVector(spinAxis, -UP.dot(spinAxis));
+  if (gp.lengthSq() > 1e-8 && upp.lengthSq() > 1e-8) {
+    gp.normalize();
+    upp.normalize();
+    let ang = Math.acos(clamp(gp.dot(upp), -1, 1));
+    if (gp.clone().cross(upp).dot(spinAxis) < 0) ang = -ang;
+    q.premultiply(new THREE.Quaternion().setFromAxisAngle(spinAxis, ang));
+  }
+  mesh.quaternion.copy(q);
+}
+
+// ---------------------------------------------------------------------------
+// FlareBall — the ball itself: marbled cover, grip holes, and the accumulating
+// oil-track rings. Time-driven off `clockRef` (shared between the main scene and
+// the inspector), so it spins and reveals flare identically in both places.
+// ---------------------------------------------------------------------------
+export const FlareBall = forwardRef(function FlareBall({ sim, radius, clockRef }, ref) {
   const ball = useRef();
   const ringRefs = useRef([]);
-  const idx = useRef(0);
-  const progress = useRef(0); // seconds into the loop cycle (pausable, scalable)
-  const prev = useRef(null);
-  const ringCount = useRef(0);
-  const revAccum = useRef(0); // revolutions completed so far this shot
-  const lastRingRev = useRef(-Infinity); // rev count at which the last ring was laid
-  const flareArc = useRef(0); // accrued spin-axis migration (rad)
-  const oriented = useRef(false); // release orientation applied for this shot
-  const trackAxisLocal = useRef(null); // ball-local PAP (release spin axis)
-  const migAxisLocal = useRef(null); // ball-local axis the PAP migrates about
-  const radius = (BALL_DIAMETER_INCH / 2) * (width / LANE_WIDTH_INCH);
+  const oriented = useRef(false);
+  const prevT = useRef(-1);
+  const axisRotRad = ((sim.axisRotDeg ?? 55) * Math.PI) / 180;
 
-  const resetShot = () => {
-    idx.current = 0;
-    prev.current = null;
-    ringCount.current = 0;
-    revAccum.current = 0;
-    lastRingRev.current = -Infinity;
-    flareArc.current = 0;
-    oriented.current = false;
-    trackAxisLocal.current = null;
-    migAxisLocal.current = null;
-    ringRefs.current.forEach((m) => m && (m.visible = false));
-  };
-
-  useEffect(() => {
-    progress.current = 0;
-    resetShot();
-  }, [replayKey, sim]);
-
-  useFrame((_, frameDt) => {
-    if (!group.current || !ball.current || !sim.points.length) return;
-    const T = sim.totalTime;
-    // Own clock so playback can pause and change speed: advance only while
-    // playing. The rest at the pins stays real-time regardless of playSpeed —
-    // only the roll itself should feel faster/slower.
-    const rawDt = Math.min(frameDt, 0.05);
-    const wasHolding = progress.current > T;
-    const dt = wasHolding ? rawDt : rawDt * playSpeed;
-    if (playing) {
-      progress.current += dt;
-      if (progress.current >= T + REPLAY_HOLD_SEC) {
-        progress.current = 0;
-        resetShot();
-      }
-    }
-    const holding = progress.current > T;
-    const t = holding ? T : progress.current;
-
-    const pts = sim.points;
-    while (idx.current < pts.length - 2 && pts[idx.current + 1].t <= t) idx.current += 1;
-    const a = pts[idx.current];
-    const b = pts[Math.min(idx.current + 1, pts.length - 1)];
-    const f = b.t > a.t ? (t - a.t) / (b.t - a.t) : 0;
-    const abs = a.abs + (b.abs - a.abs) * f;
-    const feet = a.feet + (b.feet - a.feet) * f;
-    const slip = a.slip + (b.slip - a.slip) * f;
-    const speed = a.speed + (b.speed - a.speed) * f; // ft/s
-    const oil = (a.oil || 0) + ((b.oil || 0) - (a.oil || 0)) * f;
-
-    const pos = new THREE.Vector3(absToX(abs, width), lift + radius, feetToZ(feet));
-
-    if (prev.current && !holding && playing) {
-      const delta = pos.clone().sub(prev.current);
-      delta.y = 0;
-      if (delta.lengthSq() > 1e-12) {
-        // Spin axis: at release the axis is ROTATED toward the travel direction
-        // (side rotation — that's what makes the ball hook); as slip converts to
-        // roll the axis migrates to pure end-over-end, exactly like a real ball.
-        // Forward roll about up×dir (right-hand rule: moving -z needs ω along
-        // -x, or the ball visibly spins backwards).
-        const dir = delta.normalize();
-        const rollAxis = UP.clone().cross(dir).normalize();
-        const sign = sim.hand === 'L' ? -1 : 1;
-        const spinAxis = rollAxis
-          .clone()
-          .applyAxisAngle(UP, sign * AXIS_ROTATION_RAD * slip)
-          .normalize();
-
-        // Release orientation (once per shot): hold the ball so its local PAP
-        // lies on the release spin axis with the grip facing up — exactly how
-        // a real hand delivers it. The oil track then forms beside the grip.
-        if (!oriented.current) {
-          // holes[] place the middle/ring finger inserts at +x (righty); the
-          // track must sit on the OPPOSITE side (-x), so flip the sign here.
-          const pLocal = new THREE.Vector3(
-            (sim.hand === 'L' ? 1 : -1) * Math.sin(PAP_FROM_GRIP_RAD),
-            Math.cos(PAP_FROM_GRIP_RAD),
-            0
-          ).normalize();
-          const q = new THREE.Quaternion().setFromUnitVectors(pLocal, spinAxis);
-          // free twist about the axis: use it to point the grip upward
-          const g = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
-          const gp = g.clone().addScaledVector(spinAxis, -g.dot(spinAxis));
-          const upp = UP.clone().addScaledVector(spinAxis, -UP.dot(spinAxis));
-          if (gp.lengthSq() > 1e-8 && upp.lengthSq() > 1e-8) {
-            gp.normalize();
-            upp.normalize();
-            let ang = Math.acos(THREE.MathUtils.clamp(gp.dot(upp), -1, 1));
-            if (gp.clone().cross(upp).dot(spinAxis) < 0) ang = -ang;
-            q.premultiply(new THREE.Quaternion().setFromAxisAngle(spinAxis, ang));
-          }
-          ball.current.quaternion.copy(q);
-          trackAxisLocal.current = pLocal;
-          // Flare migration axis: the PAP walks within the plane spanned by the
-          // PAP and the grip, so every track ring stays perpendicular to an axis
-          // in that one plane — which is what makes the rings meet at two knots.
-          const upL = new THREE.Vector3(0, 1, 0);
-          const migL = new THREE.Vector3().crossVectors(pLocal, upL);
-          if (migL.lengthSq() < 1e-6) migL.set(1, 0, 0);
-          migAxisLocal.current = migL.normalize();
-          oriented.current = true;
-        }
-        // Spin rate: the bowler's rev rate while slipping, surface-matching
-        // (v/r) once rolled — the visible "rev up" through the transition.
-        const omega =
-          slip * ((sim.revRpm || 350) * Math.PI * 2) / 60 +
-          (1 - slip) * (speed / BALL_RADIUS_FT);
-        ball.current.rotateOnWorldAxis(spinAxis, omega * dt);
-
-        // Count revolutions and advance the spin-axis migration (flare). The
-        // axis migrates only while the ball still slips, so migration slows to a
-        // stop as it rolls out — the rings converge to the roll-end knot. Diff
-        // sets how far the axis walks in total (flare potential).
-        const dRevs = (omega * dt) / (2 * Math.PI);
-        revAccum.current += dRevs;
-        const diffFactor = THREE.MathUtils.clamp((sim.diff || 0.048) / 0.048, 0.3, 1.9);
-        flareArc.current = Math.min(
-          MAX_FLARE_RAD,
-          flareArc.current + FLARE_PER_REV * diffFactor * slip * dRevs
-        );
-
-        // Oil track: one line per pass. Each ring is the great circle the ball
-        // contacts on — perpendicular to the CURRENT (migrated) spin axis. Since
-        // successive axes all lie in one plane, every ring passes through the
-        // same two points: the real oil-track "bowtie", not a parallel fan. New
-        // rings stop once the ball rolls out (no slip = no flare).
-        if (
-          oil > 0.06 &&
-          slip > 0.05 &&
-          revAccum.current - lastRingRev.current >= REVS_PER_RING &&
-          ringCount.current < MAX_OIL_RINGS
-        ) {
-          const ring = ringRefs.current[ringCount.current];
-          if (ring && trackAxisLocal.current && migAxisLocal.current) {
-            const sign = sim.hand === 'L' ? -1 : 1;
-            const axisL = trackAxisLocal.current
-              .clone()
-              .applyAxisAngle(migAxisLocal.current, sign * flareArc.current)
-              .normalize();
-            ring.quaternion.setFromUnitVectors(Z_AXIS, axisL);
-            ring.position.set(0, 0, 0);
-            ring.scale.setScalar(1);
-            // fresher rings carry more conditioner — older ones read fainter
-            ring.material.opacity = 0.45 + 0.45 * (ringCount.current / MAX_OIL_RINGS);
-            ring.visible = true;
-            ringCount.current += 1;
-            lastRingRev.current = revAccum.current;
-          }
-        }
-      }
-    }
-    prev.current = pos;
-    group.current.position.copy(pos);
-  });
-
-  // Grip layout: middle/ring finger inserts side by side, thumb hole apart
-  // below them. Flat discs sitting on the surface — drilled holes don't stick
-  // OUT of a real ball.
-  const holes = useMemo(
-    () =>
-      [
-        { dir: new THREE.Vector3(0.14, 0.97, 0.2).normalize(), r: 0.075 }, // 중지
-        { dir: new THREE.Vector3(-0.14, 0.97, 0.2).normalize(), r: 0.075 }, // 약지
-        { dir: new THREE.Vector3(0, 0.78, -0.63).normalize(), r: 0.1 }, // 엄지
-      ].map((h) => ({
-        ...h,
-        quat: new THREE.Quaternion().setFromUnitVectors(Z_AXIS, h.dir),
-      })),
-    []
-  );
-
+  const rings = useMemo(() => computeFlareRings(sim), [sim]);
   const marbleTex = useMemo(() => makeMarbleTexture(), []);
   useEffect(() => () => marbleTex.dispose(), [marbleTex]);
 
+  // Grip layout: middle/ring inserts side by side, thumb apart below. Flat discs
+  // sitting on the surface (drilled holes don't stick OUT of a real ball).
+  const holes = useMemo(
+    () =>
+      [
+        { dir: new THREE.Vector3(0.14, 0.97, 0.2).normalize(), r: 0.075 },
+        { dir: new THREE.Vector3(-0.14, 0.97, 0.2).normalize(), r: 0.075 },
+        { dir: new THREE.Vector3(0, 0.78, -0.63).normalize(), r: 0.1 },
+      ].map((h) => ({ ...h, quat: new THREE.Quaternion().setFromUnitVectors(Z_AXIS, h.dir) })),
+    []
+  );
+
+  useImperativeHandle(ref, () => ({ reset: () => { oriented.current = false; prevT.current = -1; } }), []);
+
+  useFrame(() => {
+    if (!ball.current || !clockRef?.current || !sim.points.length) return;
+    const T = clockRef.current.T || sim.totalTime || 1;
+    const t = clamp(clockRef.current.t || 0, 0, T);
+    // Loop restart (time jumped back): re-orient for the fresh shot.
+    if (t < prevT.current - 1e-3) oriented.current = false;
+
+    const st = stateAt(sim.points, t);
+    if (st.dir) {
+      const spinAxis = spinAxisFrom(st.dir, st.slip, sim.hand, axisRotRad);
+      if (!oriented.current) {
+        orientBall(ball.current, spinAxis, sim.hand);
+        oriented.current = true;
+      } else {
+        const dt = clamp(t - prevT.current, 0, 0.05);
+        if (dt > 0) {
+          const omega = st.slip * ((sim.revRpm || 350) * Math.PI * 2) / 60 + (1 - st.slip) * (st.speed / BALL_RADIUS_FT);
+          ball.current.rotateOnWorldAxis(spinAxis, omega * dt);
+        }
+      }
+    }
+    // Reveal every ring laid up to the current time.
+    for (let i = 0; i < rings.length; i += 1) {
+      const m = ringRefs.current[i];
+      if (m) m.visible = t >= rings[i].t;
+    }
+    prevT.current = t;
+  });
+
+  return (
+    <mesh ref={ball}>
+      <sphereGeometry args={[radius, 48, 48]} />
+      <meshStandardMaterial map={marbleTex} roughness={0.14} metalness={0.12} />
+      {/* oil-track rings — bright, thick enough to read on the moving ball */}
+      {rings.map((r, i) => (
+        <mesh
+          key={i}
+          visible={false}
+          quaternion={r.quaternion}
+          ref={(el) => {
+            ringRefs.current[i] = el;
+          }}
+        >
+          <torusGeometry args={[radius * 0.99, radius * 0.03, 8, 72]} />
+          <meshStandardMaterial
+            color="#f0feff"
+            emissive="#eafcff"
+            emissiveIntensity={0.9}
+            toneMapped={false}
+            transparent
+            opacity={r.opacity}
+            roughness={0.05}
+            metalness={0.05}
+          />
+        </mesh>
+      ))}
+      {holes.map((h, i) => (
+        <mesh
+          key={`h${i}`}
+          position={h.dir.clone().multiplyScalar(radius * 1.002).toArray()}
+          quaternion={h.quat}
+        >
+          <circleGeometry args={[radius * h.r, 24]} />
+          <meshStandardMaterial color="#0b1220" roughness={0.45} />
+        </mesh>
+      ))}
+    </mesh>
+  );
+});
+
+// The rolling ball: owns the playback clock (writing it into clockRef so the
+// inspector can follow), moves the group along the line, and hosts a FlareBall.
+function RollingBall({ sim, width, feetToZ, lift, replayKey, playing = true, playSpeed = 1, clockRef, scrub = null }) {
+  const group = useRef();
+  const flareRef = useRef();
+  const progress = useRef(0); // seconds into the loop cycle (pausable, scalable)
+  const radius = (BALL_DIAMETER_INCH / 2) * (width / LANE_WIDTH_INCH);
+
+  useEffect(() => {
+    progress.current = 0;
+    flareRef.current?.reset();
+  }, [replayKey, sim]);
+
+  useFrame((_, frameDt) => {
+    if (!group.current || !sim.points.length) return;
+    const T = sim.totalTime;
+
+    if (scrub != null) {
+      // Scrubbing: park playback at the scrub fraction; no auto-advance.
+      progress.current = clamp(scrub, 0, 1) * T;
+    } else {
+      const rawDt = Math.min(frameDt, 0.05);
+      const wasHolding = progress.current > T;
+      const dt = wasHolding ? rawDt : rawDt * playSpeed;
+      if (playing) {
+        progress.current += dt;
+        if (progress.current >= T + REPLAY_HOLD_SEC) {
+          progress.current = 0;
+          flareRef.current?.reset();
+        }
+      }
+    }
+
+    const holding = progress.current > T;
+    const t = holding ? T : progress.current;
+    if (clockRef?.current) {
+      clockRef.current.t = t;
+      clockRef.current.T = T;
+    }
+
+    const pts = sim.points;
+    let i = 0;
+    while (i < pts.length - 2 && pts[i + 1].t <= t) i += 1;
+    const a = pts[i];
+    const b = pts[Math.min(i + 1, pts.length - 1)];
+    const f = b.t > a.t ? (t - a.t) / (b.t - a.t) : 0;
+    const abs = a.abs + (b.abs - a.abs) * f;
+    const feet = a.feet + (b.feet - a.feet) * f;
+    group.current.position.set(absToX(abs, width), lift + radius, feetToZ(feet));
+  });
+
   return (
     <group ref={group}>
-      <mesh ref={ball}>
-        <sphereGeometry args={[radius, 48, 48]} />
-        <meshStandardMaterial map={marbleTex} roughness={0.14} metalness={0.12} />
-        {/* oil track rings — hidden until the ball actually rolls through oil */}
-        {Array.from({ length: MAX_OIL_RINGS }, (_, i) => (
-          <mesh
-            key={i}
-            visible={false}
-            ref={(el) => {
-              ringRefs.current[i] = el;
-            }}
-          >
-            <torusGeometry args={[radius * 0.99, radius * 0.013, 6, 64]} />
-            <meshStandardMaterial
-              color="#ffffff"
-              emissive="#ffffff"
-              emissiveIntensity={0.3}
-              transparent
-              opacity={0.9}
-              roughness={0.05}
-              metalness={0.05}
-            />
-          </mesh>
-        ))}
-        {holes.map((h, i) => (
-          <mesh
-            key={`h${i}`}
-            position={h.dir.clone().multiplyScalar(radius * 1.002).toArray()}
-            quaternion={h.quat}
-          >
-            <circleGeometry args={[radius * h.r, 24]} />
-            <meshStandardMaterial color="#0b1220" roughness={0.45} />
-          </mesh>
-        ))}
-      </mesh>
+      <FlareBall ref={flareRef} sim={sim} radius={radius} clockRef={clockRef} />
     </group>
   );
 }
@@ -368,6 +405,8 @@ export default function BallPath({
   showBall = true,
   playing = true,
   playSpeed = 1,
+  clockRef,
+  scrub = null,
 }) {
   const { positions, colors } = useMemo(() => {
     const positions = [];
@@ -392,45 +431,45 @@ export default function BallPath({
     <group>
       {showLine && (
         <>
-      <Line points={positions} vertexColors={colors} lineWidth={3} transparent opacity={0.95} />
+          <Line points={positions} vertexColors={colors} lineWidth={3} transparent opacity={0.95} />
 
-      <Marker
-        abs={stance.abs}
-        feet={stance.feet}
-        width={width}
-        feetToZ={feetToZ}
-        lift={lift}
-        ringColor="#2563eb"
-        badgeClass="bg-blue-600/95 text-white"
-      >
-        스탠스 {stance.board.toFixed(1)}보드
-      </Marker>
+          <Marker
+            abs={stance.abs}
+            feet={stance.feet}
+            width={width}
+            feetToZ={feetToZ}
+            lift={lift}
+            ringColor="#2563eb"
+            badgeClass="bg-blue-600/95 text-white"
+          >
+            스탠스 {stance.board.toFixed(1)}보드
+          </Marker>
 
-      <Marker
-        abs={aim.abs}
-        feet={aim.feet}
-        width={width}
-        feetToZ={feetToZ}
-        lift={lift}
-        ringColor="#10b981"
-        badgeClass="bg-emerald-500/95 text-white"
-      >
-        에임 {aim.board.toFixed(1)}보드
-      </Marker>
+          <Marker
+            abs={aim.abs}
+            feet={aim.feet}
+            width={width}
+            feetToZ={feetToZ}
+            lift={lift}
+            ringColor="#10b981"
+            badgeClass="bg-emerald-500/95 text-white"
+          >
+            에임 {aim.board.toFixed(1)}보드
+          </Marker>
 
-      {showBp && (
-        <Marker
-          abs={bpAbs}
-          feet={bp.feet}
-          width={width}
-          feetToZ={feetToZ}
-          lift={lift}
-          ringColor="#f59e0b"
-          badgeClass="bg-amber-400/95 text-slate-900"
-        >
-          BP {bp.board.toFixed(1)}보드 · {bp.feet.toFixed(0)}ft
-        </Marker>
-      )}
+          {showBp && (
+            <Marker
+              abs={bpAbs}
+              feet={bp.feet}
+              width={width}
+              feetToZ={feetToZ}
+              lift={lift}
+              ringColor="#f59e0b"
+              badgeClass="bg-amber-400/95 text-slate-900"
+            >
+              BP {bp.board.toFixed(1)}보드 · {bp.feet.toFixed(0)}ft
+            </Marker>
+          )}
         </>
       )}
 
@@ -443,6 +482,8 @@ export default function BallPath({
           replayKey={replayKey}
           playing={playing}
           playSpeed={playSpeed}
+          clockRef={clockRef}
+          scrub={scrub}
         />
       )}
     </group>

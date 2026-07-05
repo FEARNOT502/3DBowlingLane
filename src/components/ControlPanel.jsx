@@ -42,7 +42,14 @@ export function PanelTabBar({ tab, onTabChange, className = '' }) {
 // props into the right tab so desktop sidebar and mobile sheet share one source.
 export default function ControlPanel({ tab, ...props }) {
   if (tab === 'view') {
-    return <ViewTab view={props.view} onViewChange={props.onViewChange} layer={props.layer} />;
+    return (
+      <ViewTab
+        view={props.view}
+        onViewChange={props.onViewChange}
+        layer={props.layer}
+        onCameraPreset={props.onCameraPreset}
+      />
+    );
   }
   if (tab === 'play') {
     return (
@@ -56,6 +63,14 @@ export default function ControlPanel({ tab, ...props }) {
         onTogglePlay={props.onTogglePlay}
         playSpeed={props.playSpeed}
         onPlaySpeedChange={props.onPlaySpeedChange}
+        setups={props.setups}
+        onSaveSetup={props.onSaveSetup}
+        onLoadSetup={props.onLoadSetup}
+        onDeleteSetup={props.onDeleteSetup}
+        scrub={props.scrub}
+        onScrubChange={props.onScrubChange}
+        onShotsChange={props.onShotsChange}
+        onResetTransition={props.onResetTransition}
       />
     );
   }

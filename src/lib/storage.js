@@ -40,3 +40,48 @@ export function deletePattern(id) {
   persist(list);
   return list;
 }
+
+// ---------------------------------------------------------------------------
+// Arsenal — saved bowler/ball spec + line "setups"
+// ---------------------------------------------------------------------------
+// A setup bundles everything the 플레이 tab needs to reproduce a shot: the
+// bowler + ball spec AND the line (laydown/target). Stored separately from
+// patterns so a player can flip through their arsenal against any pattern.
+const SETUP_KEY = 'lane-oil-setups-v1';
+
+export function loadSetups() {
+  try {
+    const raw = localStorage.getItem(SETUP_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistSetups(list) {
+  try {
+    localStorage.setItem(SETUP_KEY, JSON.stringify(list));
+  } catch {
+    /* quota / private mode — ignore */
+  }
+}
+
+// Entry shape: { id, name, spec:{hand,speedKmh,revRpm,rg,diff,psa,axisRotDeg,
+// axisTiltDeg}, line:{laydownBoard,targetBoard} }.
+export function saveSetup(setup) {
+  const list = loadSetups();
+  const id = setup.id || `setup-${Date.now()}`;
+  const entry = { ...setup, id, savedAt: Date.now() };
+  const i = list.findIndex((s) => s.id === id || (s.name && s.name === setup.name));
+  if (i >= 0) list[i] = entry;
+  else list.unshift(entry);
+  persistSetups(list);
+  return list;
+}
+
+export function deleteSetup(id) {
+  const list = loadSetups().filter((s) => s.id !== id);
+  persistSetups(list);
+  return list;
+}

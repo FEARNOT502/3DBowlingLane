@@ -373,6 +373,71 @@ export function buildOilModel(forwardPasses = [], reversePasses = [], options = 
   };
 }
 
+// ---------------------------------------------------------------------------
+// Oil transition — breakdown + carrydown, along the played track
+// ---------------------------------------------------------------------------
+// A ball only touches the boards it rolls over, so breakdown and carrydown
+// follow the TRACK, not the whole lane. `trackFromPoints` samples the ball's
+// board (abs) at each down-lane row from a simulated shot; `ageOilGrid` then
+// dries the film around that track through the heads/mids (breakdown) and lays a
+// thin carried film along the track just past the pattern end (carrydown).
+// `shots` is how many shots have been thrown on the line; returns a NEW grid.
+
+// abs board of the ball at each grid row (−1 where the ball hasn't reached).
+export function trackFromPoints(points) {
+  const arr = new Float32Array(FEET_SAMPLES).fill(-1);
+  if (!points || !points.length) return arr;
+  for (const p of points) {
+    const row = Math.round(p.feet / FEET_RESOLUTION);
+    if (row >= 0 && row < FEET_SAMPLES) arr[row] = p.abs;
+  }
+  // Carry the last known board forward so every row past the launch has a track
+  // (the path is monotonic down-lane).
+  let last = -1;
+  for (let r = 0; r < FEET_SAMPLES; r += 1) {
+    if (arr[r] >= 0) last = arr[r];
+    else if (last >= 0) arr[r] = last;
+  }
+  return arr;
+}
+
+const TRACK_BD_SIGMA = 3.0; // breakdown track width (boards)
+const TRACK_CD_SIGMA = 3.5; // carrydown smear width (boards)
+
+export function ageOilGrid(grid, norm, shots, patternFeet, track) {
+  const s = Math.min(Math.max(shots || 0, 0), 80);
+  if (s <= 0) return grid;
+  const out = new Float32Array(grid.length);
+  const endFeet = patternFeet && patternFeet > 0 ? patternFeet : 40;
+  const ref = norm > 0 ? norm : 1;
+  for (let row = 0; row < FEET_SAMPLES; row += 1) {
+    const feet = row * FEET_RESOLUTION;
+    // Breakdown peaks through the heads/mid (~8-32 ft) where the ball still
+    // skids hard on the film; carrydown deposits just past the pattern end.
+    const bdEnv = Math.exp(-Math.pow((feet - 20) / 15, 2));
+    const cdEnv = Math.exp(-Math.pow((feet - (endFeet + 3)) / 3.8, 2));
+    const trackAbs = track ? track[row] : -1;
+    // Carrydown is a THIN carried film, not a fresh reload — keep it modest.
+    const cdMag = clamp(s / 60, 0, 0.4);
+    for (let col = 0; col < BOARD_COUNT; col += 1) {
+      const abs = col + 1;
+      // Concentrate the effect on the boards the ball actually rolls over. With
+      // no track (fallback), age the whole width uniformly.
+      let wBd = 1;
+      let wCd = 1;
+      if (trackAbs >= 0) {
+        wBd = Math.exp(-Math.pow((abs - trackAbs) / TRACK_BD_SIGMA, 2));
+        wCd = Math.exp(-Math.pow((abs - trackAbs) / TRACK_CD_SIGMA, 2));
+      }
+      const breakdown = clamp((s / 40) * bdEnv * wBd, 0, 0.8);
+      const add = cdMag * cdEnv * wCd * ref * 0.25;
+      const i = gridIndex(row, col);
+      out[i] = grid[i] * (1 - breakdown) + add;
+    }
+  }
+  return out;
+}
+
 // Combine an arbitrary set of enabled layers into a single grid + its max,
 // used to drive the heatmap when the user toggles Forward / Reverse on or off.
 export function selectGrid(model, showForward, showReverse) {

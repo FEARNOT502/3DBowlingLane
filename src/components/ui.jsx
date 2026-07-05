@@ -87,8 +87,17 @@ export function Toggle({ label, checked, onChange, color }) {
   );
 }
 
-export function Slider({ label, value, min, max, step, onChange, fmt = (v) => v, suffix }) {
+// `reverse` flips the track left↔right so the handle position matches a physical
+// frame of reference (e.g. board 1 = the hand-side gutter on the right for a
+// righty). The value/range stay the same; only the on-screen direction flips.
+export function Slider({ label, value, min, max, step, onChange, fmt = (v) => v, suffix, reverse = false }) {
   const pct = ((value - min) / (max - min)) * 100;
+  // `direction: rtl` flips the native thumb/track but NOT the CSS background, so
+  // place the filled portion on the correct side manually: left→thumb normally,
+  // right→thumb when reversed.
+  const fillBg = reverse
+    ? `linear-gradient(90deg, var(--slider-rest) ${100 - pct}%, var(--slider-fill) ${100 - pct}%)`
+    : `linear-gradient(90deg, var(--slider-fill) ${pct}%, var(--slider-rest) ${pct}%)`;
   return (
     <div className="px-2 py-2">
       <div className="mb-2 flex items-baseline justify-between text-xs text-slate-600 dark:text-slate-300">
@@ -106,9 +115,7 @@ export function Slider({ label, value, min, max, step, onChange, fmt = (v) => v,
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
         className="range-input h-1 w-full cursor-pointer appearance-none rounded-full"
-        style={{
-          background: `linear-gradient(90deg, var(--slider-fill) ${pct}%, var(--slider-rest) ${pct}%)`,
-        }}
+        style={{ direction: reverse ? 'rtl' : 'ltr', background: fillBg }}
       />
     </div>
   );
