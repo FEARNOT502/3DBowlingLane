@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { Html } from '@react-three/drei';
-import { makeLaneTexture, makeDeckTexture } from '../lib/laneTexture.js';
+import {
+  makeLaneTexture,
+  makeDeckTexture,
+  makeBackgroundTintTexture,
+} from '../lib/laneTexture.js';
 import { buildOilTextures } from '../lib/oilTexture.js';
 import BallPath from './BallPath.jsx';
 import {
@@ -168,37 +172,7 @@ function Gutters({ width }) {
 // simply stops at `fadeFeet`. Realistic mode keeps a subtle fading tint instead.
 function BackgroundTint({ width, fadeFeet = 45, oilMode = 'sheet' }) {
   const sheet = oilMode !== 'realistic';
-  const tex = useMemo(() => {
-    const w = 2;
-    const h = FEET_SAMPLES;
-    const data = new Uint8Array(w * h * 4);
-    const endRow = Math.round((fadeFeet / LANE_LENGTH_FEET) * FEET_SAMPLES);
-    const tailRows = 8; // ~2 ft soft stop at the pattern end (sheet mode)
-    for (let row = 0; row < h; row += 1) {
-      let k;
-      if (sheet) {
-        // Uniform wash until fadeFeet, easing out over the last couple of feet.
-        k = row >= endRow ? 0 : Math.min(1, (endRow - row) / tailRows);
-        k *= 0.34;
-      } else {
-        k = (endRow > 0 ? Math.max(0, 1 - row / endRow) : 0) * 0.18;
-      }
-      const alpha = Math.round(k * 255);
-      for (let x = 0; x < w; x += 1) {
-        const o = (row * w + x) * 4;
-        data[o] = 168; // periwinkle
-        data[o + 1] = 182;
-        data[o + 2] = 240;
-        data[o + 3] = alpha;
-      }
-    }
-    const t = new THREE.DataTexture(data, w, h, THREE.RGBAFormat);
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.magFilter = THREE.LinearFilter;
-    t.minFilter = THREE.LinearFilter;
-    t.needsUpdate = true;
-    return t;
-  }, [fadeFeet, sheet]);
+  const tex = useMemo(() => makeBackgroundTintTexture(fadeFeet, sheet), [fadeFeet, sheet]);
   useEffect(() => () => tex.dispose(), [tex]);
 
   return (

@@ -4,6 +4,7 @@ import {
   FEET_RESOLUTION,
   DEFAULT_OIL_PER_BOARD_UL,
 } from './laneConstants.js';
+import { clamp } from './utils.js';
 
 // ===========================================================================
 // Oil density model
@@ -59,8 +60,6 @@ function gaussianKernel(sigma) {
   for (let i = 0; i < kernel.length; i += 1) kernel[i] /= sum;
   return { kernel, radius };
 }
-
-const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
 // Separable Gaussian blur with edge clamping. sigmaX is in boards, sigmaY in
 // feet-samples. Returns a new grid; the input is left untouched.
@@ -256,6 +255,67 @@ function downLaneProfile(grid) {
   return profile;
 }
 
+// Smooths the accumulated density/presence grids and packages the finished
+// model (grids + normalisation references + per-board / down-lane aggregates).
+// Mutates `forward`, `reverse` and `combined` in place with the blurred values.
+//
+// Feather the hard pass rectangles into the smooth, tapering block seen on the
+// machine sheet. The cross-lane sigma is the visible "side gradient"; the
+// down-lane sigma just blends consecutive passes. `smooth` lets callers tune
+// or disable it (sigma in boards / feet-samples).
+//
+// The buffer brush feathers oil noticeably SIDEWAYS (across boards) — that soft
+// light-blue gradient running down both edges of the block on the printed sheet
+// — so the cross-lane sigma is WIDE (~2.2 boards). The down-lane sigma stays
+// TIGHT (~0.7) so the printed graph's stepped terraces survive: each pass is a
+// distinct board-width rung and we want those steps visible, just anti-aliased.
+function finalizeOilModel(forward, reverse, combined, forwardPresence, reversePresence, options) {
+  const sx = options.smoothBoards != null ? options.smoothBoards : 2.2;
+  const sy = options.smoothFeet != null ? options.smoothFeet : 0.7;
+  const fwd = sx > 0 || sy > 0 ? blurGrid(forward, sx, sy) : forward;
+  const rev = sx > 0 || sy > 0 ? blurGrid(reverse, sx, sy) : reverse;
+  for (let i = 0; i < combined.length; i += 1) {
+    forward[i] = fwd[i];
+    reverse[i] = rev[i];
+    combined[i] = fwd[i] + rev[i];
+  }
+
+  // Soften the presence masks the same way so the hue boundaries line up with
+  // the (blurred) oil block edges.
+  const fPres = sx > 0 || sy > 0 ? blurGrid(forwardPresence, sx, sy) : forwardPresence;
+  const rPres = sx > 0 || sy > 0 ? blurGrid(reversePresence, sx, sy) : reversePresence;
+
+  const maxForward = gridMax(forward);
+  const maxReverse = gridMax(reverse);
+  const maxCombined = gridMax(combined);
+
+  return {
+    forward,
+    reverse,
+    combined,
+    presence: { forward: fPres, reverse: rPres },
+    max: { forward: maxForward, reverse: maxReverse, combined: maxCombined },
+    // Robust normalisation reference (90th percentile of wet cells). Using this
+    // instead of the raw max keeps the narrow high-density spike from washing
+    // out the thinner oil on the SIDES of the block — the spike just clips.
+    norm: {
+      forward: robustNorm(forward),
+      reverse: robustNorm(reverse),
+      combined: robustNorm(combined),
+    },
+    boardTotals: {
+      forward: boardTotals(forward),
+      reverse: boardTotals(reverse),
+      combined: boardTotals(combined),
+    },
+    profile: {
+      forward: downLaneProfile(forward),
+      reverse: downLaneProfile(reverse),
+      combined: downLaneProfile(combined),
+    },
+  };
+}
+
 // Kegel sheets list forward loads from the foul line (0 ft) outward with the
 // widest loads first, so the raw orientation is already foul-anchored — no
 // mirroring needed. { flip: true } mirrors each pass's down-lane position
@@ -317,60 +377,7 @@ export function buildOilModel(forwardPasses = [], reversePasses = [], options = 
   forwardAll.forEach((p) => accumulatePresence(forwardPresence, p));
   reverseAll.forEach((p) => accumulatePresence(reversePresence, p));
 
-  // Feather the hard pass rectangles into the smooth, tapering block seen on the
-  // machine sheet. The cross-lane sigma is the visible "side gradient"; the
-  // down-lane sigma just blends consecutive passes. `smooth` lets callers tune
-  // or disable it (sigma in boards / feet-samples).
-  //
-  // The buffer brush feathers oil noticeably SIDEWAYS (across boards) — that soft
-  // light-blue gradient running down both edges of the block on the printed sheet
-  // — so the cross-lane sigma is WIDE (~2.2 boards). The down-lane sigma stays
-  // TIGHT (~0.7) so the printed graph's stepped terraces survive: each pass is a
-  // distinct board-width rung and we want those steps visible, just anti-aliased.
-  const sx = options.smoothBoards != null ? options.smoothBoards : 2.2;
-  const sy = options.smoothFeet != null ? options.smoothFeet : 0.7;
-  const fwd = sx > 0 || sy > 0 ? blurGrid(forward, sx, sy) : forward;
-  const rev = sx > 0 || sy > 0 ? blurGrid(reverse, sx, sy) : reverse;
-  for (let i = 0; i < combined.length; i += 1) {
-    forward[i] = fwd[i];
-    reverse[i] = rev[i];
-    combined[i] = fwd[i] + rev[i];
-  }
-
-  // Soften the presence masks the same way so the hue boundaries line up with
-  // the (blurred) oil block edges.
-  const fPres = sx > 0 || sy > 0 ? blurGrid(forwardPresence, sx, sy) : forwardPresence;
-  const rPres = sx > 0 || sy > 0 ? blurGrid(reversePresence, sx, sy) : reversePresence;
-
-  const maxForward = gridMax(forward);
-  const maxReverse = gridMax(reverse);
-  const maxCombined = gridMax(combined);
-
-  return {
-    forward,
-    reverse,
-    combined,
-    presence: { forward: fPres, reverse: rPres },
-    max: { forward: maxForward, reverse: maxReverse, combined: maxCombined },
-    // Robust normalisation reference (90th percentile of wet cells). Using this
-    // instead of the raw max keeps the narrow high-density spike from washing
-    // out the thinner oil on the SIDES of the block — the spike just clips.
-    norm: {
-      forward: robustNorm(forward),
-      reverse: robustNorm(reverse),
-      combined: robustNorm(combined),
-    },
-    boardTotals: {
-      forward: boardTotals(forward),
-      reverse: boardTotals(reverse),
-      combined: boardTotals(combined),
-    },
-    profile: {
-      forward: downLaneProfile(forward),
-      reverse: downLaneProfile(reverse),
-      combined: downLaneProfile(combined),
-    },
-  };
+  return finalizeOilModel(forward, reverse, combined, forwardPresence, reversePresence, options);
 }
 
 // ---------------------------------------------------------------------------
@@ -403,18 +410,21 @@ export function trackFromPoints(points) {
 
 const TRACK_BD_SIGMA = 3.0; // breakdown track width (boards)
 const TRACK_CD_SIGMA = 3.5; // carrydown smear width (boards)
+const FALLBACK_PATTERN_FEET = 40; // assumed pattern end when the caller has none
+const BREAKDOWN_CENTER_FT = 20; // breakdown envelope peaks here (heads/mid)
+const BREAKDOWN_SPREAD_FT = 15; // Gaussian half-width of the breakdown zone
 
 export function ageOilGrid(grid, norm, shots, patternFeet, track) {
   const s = Math.min(Math.max(shots || 0, 0), 80);
   if (s <= 0) return grid;
   const out = new Float32Array(grid.length);
-  const endFeet = patternFeet && patternFeet > 0 ? patternFeet : 40;
+  const endFeet = patternFeet && patternFeet > 0 ? patternFeet : FALLBACK_PATTERN_FEET;
   const ref = norm > 0 ? norm : 1;
   for (let row = 0; row < FEET_SAMPLES; row += 1) {
     const feet = row * FEET_RESOLUTION;
     // Breakdown peaks through the heads/mid (~8-32 ft) where the ball still
     // skids hard on the film; carrydown deposits just past the pattern end.
-    const bdEnv = Math.exp(-Math.pow((feet - 20) / 15, 2));
+    const bdEnv = Math.exp(-Math.pow((feet - BREAKDOWN_CENTER_FT) / BREAKDOWN_SPREAD_FT, 2));
     const cdEnv = Math.exp(-Math.pow((feet - (endFeet + 3)) / 3.8, 2));
     const trackAbs = track ? track[row] : -1;
     // Carrydown is a THIN carried film, not a fresh reload — keep it modest.

@@ -28,7 +28,7 @@ export function boardFromNotation(raw) {
   return clampBoard(board);
 }
 
-export function clampBoard(board) {
+function clampBoard(board) {
   return Math.min(BOARD_COUNT, Math.max(1, board));
 }
 
@@ -37,12 +37,4 @@ export function clampBoard(board) {
 export function boardLabel(board) {
   if (board === CENTER_BOARD) return '20';
   return board < CENTER_BOARD ? `${board}L` : `${BOARD_COUNT + 1 - board}R`;
-}
-
-// Inclusive board span [min, max] covered by a START->STOP pair.
-export function boardSpan(startNotation, stopNotation) {
-  const a = boardFromNotation(startNotation);
-  const b = boardFromNotation(stopNotation);
-  if (a == null || b == null) return null;
-  return [Math.min(a, b), Math.max(a, b)];
 }

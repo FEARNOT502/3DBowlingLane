@@ -40,82 +40,10 @@ export function PanelTabBar({ tab, onTabChange, className = '' }) {
 
 // Content of the active tab. All state lives in App; this component only routes
 // props into the right tab so desktop sidebar and mobile sheet share one source.
+// Each tab destructures just the props it needs from the shared panelProps bag.
 export default function ControlPanel({ tab, ...props }) {
-  if (tab === 'view') {
-    return (
-      <ViewTab
-        view={props.view}
-        onViewChange={props.onViewChange}
-        layer={props.layer}
-        onCameraPreset={props.onCameraPreset}
-      />
-    );
-  }
-  if (tab === 'play') {
-    return (
-      <PlayTab
-        play={props.play}
-        onPlayChange={props.onPlayChange}
-        sim={props.sim}
-        recs={props.recs}
-        onApplyLine={props.onApplyLine}
-        playing={props.playing}
-        onTogglePlay={props.onTogglePlay}
-        playSpeed={props.playSpeed}
-        onPlaySpeedChange={props.onPlaySpeedChange}
-        setups={props.setups}
-        onSaveSetup={props.onSaveSetup}
-        onLoadSetup={props.onLoadSetup}
-        onDeleteSetup={props.onDeleteSetup}
-        scrub={props.scrub}
-        onScrubChange={props.onScrubChange}
-        onShotsChange={props.onShotsChange}
-        onResetTransition={props.onResetTransition}
-      />
-    );
-  }
-  if (tab === 'analysis') {
-    return (
-      <AnalysisTab
-        forwardText={props.forwardText}
-        reverseText={props.reverseText}
-        onForwardTextChange={props.onForwardTextChange}
-        onReverseTextChange={props.onReverseTextChange}
-        onApply={props.onApply}
-        parseInfo={props.parseInfo}
-        forwardPasses={props.forwardPasses}
-        reversePasses={props.reversePasses}
-        view={props.view}
-        stats={props.stats}
-        chartData={props.chartData}
-        trackZones={props.trackZones}
-        sliceFeet={props.sliceFeet}
-        onSliceFeetChange={props.onSliceFeetChange}
-        sliceData={props.sliceData}
-        sliceMax={props.sliceMax}
-      />
-    );
-  }
-  return (
-    <PatternTab
-      patterns={props.patterns}
-      activeId={props.activeId}
-      onLoadSample={props.onLoadSample}
-      savedPatterns={props.savedPatterns}
-      onLoadSaved={props.onLoadSaved}
-      onDeleteSaved={props.onDeleteSaved}
-      onImportPdf={props.onImportPdf}
-      importing={props.importing}
-      importError={props.importError}
-      pageImage={props.pageImage}
-      importInfo={props.importInfo}
-      aiText={props.aiText}
-      onAiTextChange={props.onAiTextChange}
-      onAiImport={props.onAiImport}
-      aiError={props.aiError}
-      meta={props.meta}
-      onDistanceChange={props.onDistanceChange}
-      totals={props.totals}
-    />
-  );
+  if (tab === 'view') return <ViewTab {...props} />;
+  if (tab === 'play') return <PlayTab {...props} />;
+  if (tab === 'analysis') return <AnalysisTab {...props} />;
+  return <PatternTab {...props} />;
 }

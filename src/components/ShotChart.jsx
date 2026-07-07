@@ -1,11 +1,12 @@
 import React from 'react';
+import { LANE_LENGTH_FEET } from '../lib/laneConstants.js';
+import { KMH_TO_FTS } from '../lib/utils.js';
 
 // ---------------------------------------------------------------------------
 // ShotChart — how the ball evolves down the lane: forward speed (line) and the
 // skid→roll transition (slip, filled area) against distance. The breakpoint is
 // marked so the reader can tie the numbers to the shape of the shot.
 // ---------------------------------------------------------------------------
-const LANE_FT = 60;
 
 export default function ShotChart({ sim }) {
   if (!sim || !sim.points || sim.points.length < 2) return null;
@@ -16,7 +17,7 @@ export default function ShotChart({ sim }) {
   const speeds = pts.map((p) => p.speed);
   const vMax = Math.max(...speeds, 1);
   const vMin = Math.min(...speeds, 0);
-  const x = (ft) => (ft / LANE_FT) * W;
+  const x = (ft) => (ft / LANE_LENGTH_FEET) * W;
   const ySlip = (s) => H - s * H; // slip 1 (skid) at top, 0 (roll) at bottom
   const ySpeed = (v) => (vMax > vMin ? H - ((v - vMin) / (vMax - vMin)) * (H - 6) - 3 : H / 2);
 
@@ -29,7 +30,6 @@ export default function ShotChart({ sim }) {
     .join(' ');
 
   const bpFt = sim.breakpoint?.feet || 0;
-  const KMH = 0.911344;
 
   return (
     <div>
@@ -60,7 +60,7 @@ export default function ShotChart({ sim }) {
         ))}
       </svg>
       <div className="mt-1 flex items-center gap-3 px-1 text-[9px] text-slate-400 dark:text-slate-500">
-        <span className="flex items-center gap-1"><span className="h-[2px] w-3 rounded bg-blue-600 dark:bg-sky-400" /> 스피드 {(vMin / KMH).toFixed(0)}~{(vMax / KMH).toFixed(0)}km/h</span>
+        <span className="flex items-center gap-1"><span className="h-[2px] w-3 rounded bg-blue-600 dark:bg-sky-400" /> 스피드 {(vMin / KMH_TO_FTS).toFixed(0)}~{(vMax / KMH_TO_FTS).toFixed(0)}km/h</span>
         <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-sky-400/40" /> 슬립(스키드→롤)</span>
         <span className="flex items-center gap-1"><span className="h-[2px] w-3 rounded bg-amber-400" /> BP</span>
       </div>

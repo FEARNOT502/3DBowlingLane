@@ -76,7 +76,7 @@ export function densityColor(t, layer = 'combined') {
 // THICKNESS (0..1) used to pick how light/dark within each ramp. Weighting by
 // presence — not by oil amount — keeps the overlap solid navy regardless of which
 // layer happens to be thicker, exactly like the sheet.
-const PRES_THRESHOLD = 0.3; // blurred coverage above this counts as "present"
+export const PRES_THRESHOLD = 0.3; // blurred coverage above this counts as "present"
 
 // FLAT layer colours matching the printed sheet's 3-swatch legend exactly:
 //   Forward = cyan, Reverse = blue, Combined(overlap) = navy.
@@ -107,16 +107,6 @@ export function layeredColor(pf, pr, _t) {
     Math.round((cO[1] * wo + cF[1] * wf + cR[1] * wr) / sum),
     Math.round((cO[2] * wo + cF[2] * wf + cR[2] * wr) / sum),
   ];
-}
-
-// Like the machine sheet, ANY oil — even the thin film on the side boards or the
-// light coat near the foul line — must read as a solid coloured tint, not as
-// bare wood. So the alpha floor is HIGH (0.8): the gradient you see across the
-// block is carried by the COLOUR ramp (bright cyan → deep navy), not by fading
-// to transparency. Only genuinely dry wood (t = 0) shows through.
-export function densityAlpha(t) {
-  if (t <= 0) return 0;
-  return Math.round(255 * Math.min(1, 0.8 + t * 0.2));
 }
 
 // CSS gradient string for the on-screen legend.

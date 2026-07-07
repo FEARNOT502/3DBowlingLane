@@ -3,6 +3,7 @@ import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import Lane from './Lane.jsx';
+import { isTypingTarget } from '../lib/utils.js';
 
 // WASD / QE panning on top of OrbitControls. W/S move along the view direction
 // (projected onto the lane), A/D strafe, E/Shift raise/lower. Space is reserved
@@ -13,9 +14,8 @@ function WasdControls() {
   const keys = useRef({});
 
   useEffect(() => {
-    const typing = () => ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
     const down = (e) => {
-      if (typing()) return;
+      if (isTypingTarget()) return;
       keys.current[e.code] = true;
     };
     const up = (e) => {

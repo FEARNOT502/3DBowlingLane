@@ -9,7 +9,6 @@ export const LANE_LENGTH_FEET = 60; // foul line to pin deck (ft)
 
 // Convert real dimensions to the "feet" unit used in the 3D scene.
 export const BOARD_WIDTH_FEET = BOARD_WIDTH_INCH / 12; // ~0.0868 ft
-export const LANE_WIDTH_FEET = LANE_WIDTH_INCH / 12; // ~3.39 ft
 
 // Density grid resolution.
 export const FEET_RESOLUTION = 0.25; // sample every quarter foot down-lane

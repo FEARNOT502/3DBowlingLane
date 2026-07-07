@@ -5,6 +5,7 @@ import {
   LANE_LENGTH_FEET,
   BOARD_WIDTH_FEET,
 } from './laneConstants.js';
+import { clamp, KMH_TO_FTS } from './utils.js';
 
 // ===========================================================================
 // Ball motion model
@@ -34,7 +35,6 @@ export const POCKET_BOWLER_BOARD = 17.5; // 1-3 pocket (R) / 1-2 pocket (L)
 export const ARROWS_FEET = 15; // targeting row: the arrows
 
 const G_FT = 32.174; // gravity, ft/s²
-const KMH_TO_FTS = 0.911344;
 
 export const DEFAULT_PLAYER = {
   hand: 'R',
@@ -65,8 +65,6 @@ const P = {
   dragRoll: 0.5, // forward speed bleed once rolling
 };
 
-const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
-
 export function bowlerToAbs(board, hand) {
   return hand === 'L' ? board : BOARD_COUNT + 1 - board;
 }
@@ -92,13 +90,23 @@ function frictionFromOil(oil) {
 
 // Ball-spec factors --------------------------------------------------------
 
+// Diff 0.048 is the reference flare; callers normalise diff against it (each
+// with their own clamp bounds).
+export const DIFF_REF = 0.048;
+
+// Axis tilt centred on the 15° tweener reference: 0 at 15°, so the default
+// release reproduces the original calibration exactly. More tilt = "spiller"
+// → less flare, earlier roll, less hook.
+export const axisTiltRel = (axisTiltDeg) =>
+  clamp(((axisTiltDeg ?? 15) - 15) / 90, -0.17, 0.5);
+
 function specFactors({ revRpm, rg, diff, psa, speedKmh, axisRotDeg, axisTiltDeg }) {
   const revN = clamp(revRpm / 350, 0.3, 2.2);
   // RG 2.46 (low, early) .. 2.60+ (high, long): scales how much slip the ball
   // starts with, i.e. how long it takes friction to stand it up.
   const rgN = clamp((rg - 2.46) / 0.14, -0.25, 1.9);
   // Diff 0.048 as the reference flare; scales lateral force.
-  const diffN = clamp(diff / 0.048, 0.1, 1.9);
+  const diffN = clamp(diff / DIFF_REF, 0.1, 1.9);
   // PSA (intermediate diff): 0 = smooth benchmark arc, 0.030+ = violent flip.
   const psaN = clamp((psa || 0) / 0.015, 0, 2.7);
   // Axis rotation 55° and tilt 15° are the tweener REFERENCE: both factors below
@@ -107,7 +115,7 @@ function specFactors({ revRpm, rg, diff, psa, speedKmh, axisRotDeg, axisTiltDeg 
   // More side rotation = more revs go sideways → more hook, stands up a touch
   // later. More tilt = "spiller" → less flare, earlier roll, less hook.
   const axisRotN = clamp((axisRotDeg ?? 55) / 55, 0.15, 1.75); // 1.0 at 55°
-  const tiltRel = clamp(((axisTiltDeg ?? 15) - 15) / 90, -0.17, 0.5); // 0 at 15°
+  const tiltRel = axisTiltRel(axisTiltDeg); // 0 at 15°
   const v0 = Math.max(8, speedKmh * KMH_TO_FTS);
   return {
     v0,

@@ -97,35 +97,6 @@ export const IconMoon = (p) => (
   </Base>
 );
 
-export const IconEdit = (p) => (
-  <Base {...p}>
-    <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-  </Base>
-);
-
-export const IconTarget = (p) => (
-  <Base {...p}>
-    <circle cx="12" cy="12" r="9" />
-    <circle cx="12" cy="12" r="5" />
-    <circle cx="12" cy="12" r="1" />
-  </Base>
-);
-
-export const IconLayers = (p) => (
-  <Base {...p}>
-    <path d="m12 2 9 5-9 5-9-5Z" />
-    <path d="m3 12 9 5 9-5" />
-    <path d="m3 17 9 5 9-5" />
-  </Base>
-);
-
-export const IconTable = (p) => (
-  <Base {...p}>
-    <rect x="3" y="4" width="18" height="16" rx="1.5" />
-    <path d="M3 10h18M9 4v16" />
-  </Base>
-);
-
 export const IconLoader = (p) => (
   <Base {...p} className={`animate-spin ${p?.className || ''}`}>
     <path d="M12 2v4M12 18v4M4.9 4.9l2.9 2.9M16.2 16.2l2.9 2.9M2 12h4M18 12h4M4.9 19.1l2.9-2.9M16.2 7.8l2.9-2.9" />
