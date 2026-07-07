@@ -153,19 +153,19 @@ export const IconBall = (p) => (
   </Base>
 );
 
-// App mark: abstract lane perspective on a blue gradient tile.
+// App mark: abstract lane perspective on an indigo gradient tile (studio white).
 export const LogoMark = ({ size = 34, className = '' }) => (
   <svg width={size} height={size} viewBox="0 0 36 36" className={className} aria-hidden="true">
     <defs>
       <linearGradient id="logo-grad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#38bdf8" />
-        <stop offset="100%" stopColor="#2563eb" />
+        <stop offset="0%" stopColor="#6f80ea" />
+        <stop offset="100%" stopColor="#4b5cd8" />
       </linearGradient>
     </defs>
     <rect x="1" y="1" width="34" height="34" rx="10" fill="url(#logo-grad)" />
     <path d="M14 28 16.5 8h3L22 28Z" fill="rgba(255,255,255,0.92)" />
-    <circle cx="18" cy="12.5" r="1.6" fill="#1e40af" />
-    <circle cx="15.8" cy="17.5" r="1.6" fill="#1e40af" opacity="0.65" />
-    <circle cx="20.2" cy="17.5" r="1.6" fill="#1e40af" opacity="0.65" />
+    <circle cx="18" cy="12.5" r="1.6" fill="#3949b3" />
+    <circle cx="15.8" cy="17.5" r="1.6" fill="#3949b3" opacity="0.65" />
+    <circle cx="20.2" cy="17.5" r="1.6" fill="#3949b3" opacity="0.65" />
   </svg>
 );

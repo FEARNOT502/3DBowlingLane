@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { Line, Html } from '@react-three/drei';
 import { BOARD_COUNT, LANE_WIDTH_INCH, BOARD_WIDTH_FEET } from '../lib/laneConstants.js';
+import { makeBallTexture, BALL_DESIGNS, DEFAULT_DESIGN } from '../lib/ballDesigns.js';
 
 // ---------------------------------------------------------------------------
 // 3D shot overlay: the simulated trajectory coloured by phase (skid / hook /
@@ -42,73 +43,6 @@ const PAP_FROM_GRIP_RAD = (73 * Math.PI) / 180;
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const UP = new THREE.Vector3(0, 1, 0);
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
-
-// Marbled coverstock texture (equirectangular, wraps the sphere). Seeded so
-// every ball renders the same swirl.
-export function makeMarbleTexture() {
-  const W = 1024;
-  const H = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext('2d');
-
-  let seed = 20260705;
-  const rnd = () => {
-    seed = (seed * 1664525 + 1013904223) % 4294967296;
-    return seed / 4294967296;
-  };
-
-  // deep blue base with a subtle vertical shade
-  const base = ctx.createLinearGradient(0, 0, 0, H);
-  base.addColorStop(0, '#1e3a8a');
-  base.addColorStop(0.5, '#1d4ed8');
-  base.addColorStop(1, '#1e40af');
-  ctx.fillStyle = base;
-  ctx.fillRect(0, 0, W, H);
-
-  // swirled veins in lighter/darker blues and a few pale streaks. Drawing the
-  // whole pass twice, offset by W, keeps the horizontal wrap seam invisible.
-  const veins = [
-    { color: 'rgba(96,165,250,0.5)', width: [6, 26], n: 9 },
-    { color: 'rgba(23,37,84,0.55)', width: [8, 30], n: 8 },
-    { color: 'rgba(147,197,253,0.35)', width: [3, 12], n: 7 },
-    { color: 'rgba(224,242,254,0.22)', width: [2, 7], n: 6 },
-  ];
-  for (const v of veins) {
-    for (let i = 0; i < v.n; i += 1) {
-      const x0 = rnd() * W;
-      const y0 = rnd() * H;
-      const segs = 3 + Math.floor(rnd() * 3);
-      const lw = v.width[0] + rnd() * (v.width[1] - v.width[0]);
-      for (const off of [0, -W, W]) {
-        ctx.beginPath();
-        ctx.moveTo(x0 + off, y0);
-        let px = x0;
-        let py = y0;
-        const s0 = seed;
-        for (let sIdx = 0; sIdx < segs; sIdx += 1) {
-          const cx = px + (rnd() - 0.5) * 340;
-          const cy = py + (rnd() - 0.5) * 240;
-          px += (rnd() - 0.5) * 420;
-          py += (rnd() - 0.5) * 260;
-          ctx.quadraticCurveTo(cx + off, cy, px + off, py);
-        }
-        if (off !== W) seed = s0;
-        ctx.strokeStyle = v.color;
-        ctx.lineWidth = lw;
-        ctx.lineCap = 'round';
-        ctx.stroke();
-      }
-    }
-  }
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.anisotropy = 4;
-  return tex;
-}
 
 // ---------------------------------------------------------------------------
 // Flare model — deterministic pass over the simulated shot.
@@ -231,7 +165,7 @@ export const FlareBall = forwardRef(function FlareBall({ sim, radius, clockRef }
   const axisRotRad = ((sim.axisRotDeg ?? 55) * Math.PI) / 180;
 
   const rings = useMemo(() => computeFlareRings(sim), [sim]);
-  const marbleTex = useMemo(() => makeMarbleTexture(), []);
+  const marbleTex = useMemo(() => makeBallTexture(), []);
   useEffect(() => () => marbleTex.dispose(), [marbleTex]);
 
   // Grip layout: middle/ring inserts side by side, thumb apart below. Flat discs
@@ -279,8 +213,12 @@ export const FlareBall = forwardRef(function FlareBall({ sim, radius, clockRef }
 
   return (
     <mesh ref={ball}>
-      <sphereGeometry args={[radius, 48, 48]} />
-      <meshStandardMaterial map={marbleTex} roughness={0.14} metalness={0.12} />
+      <sphereGeometry args={[radius, 64, 64]} />
+      <meshPhysicalMaterial
+        map={marbleTex}
+        {...BALL_DESIGNS[DEFAULT_DESIGN].mat}
+        envMapIntensity={1.1}
+      />
       {/* oil-track rings — bright, thick enough to read on the moving ball */}
       {rings.map((r, i) => (
         <mesh

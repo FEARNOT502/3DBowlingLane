@@ -5,7 +5,7 @@ import { AI_PROMPT } from '../../lib/aiImport.js';
 
 function StepBadge({ n }) {
   return (
-    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-blue-100 font-mono text-[10px] font-bold text-blue-600 dark:bg-sky-500/15 dark:text-sky-300">
+    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#eef0fc] font-mono text-[10px] font-bold text-[oklch(0.5_0.13_262)] dark:bg-sky-500/15 dark:text-sky-300">
       {n}
     </span>
   );
@@ -18,11 +18,11 @@ function StepBadge({ n }) {
 function AiImport({ aiText, onAiTextChange, onAiImport, aiError }) {
   return (
     <Card className="overflow-hidden">
-      <div className="border-b border-slate-200/70 bg-gradient-to-r from-sky-50 to-indigo-50 px-3 py-2.5 dark:border-white/10 dark:from-sky-500/10 dark:to-indigo-500/10">
-        <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-sky-300">
+      <div className="border-b border-[#ece7dd] bg-gradient-to-r from-[#f2f4ff] to-[#f4f1fb] px-3 py-2.5 dark:border-white/10 dark:from-sky-500/10 dark:to-indigo-500/10">
+        <div className="flex items-center gap-2 text-xs font-semibold text-[oklch(0.5_0.13_262)] dark:text-sky-300">
           <IconSparkle size={13} /> AI로 패턴 가져오기
         </div>
-        <p className="mt-1 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+        <p className="mt-1 text-[11px] leading-relaxed text-[#8a857b] dark:text-slate-400">
           OCR보다 정확합니다. 아래 프롬프트를 복사해 ChatGPT·Claude에 <b>패턴 이미지와 함께</b>{' '}
           붙여넣고, 받은 결과를 다시 여기에 붙여넣으세요. (API 키 불필요)
         </p>
@@ -41,7 +41,7 @@ function AiImport({ aiText, onAiTextChange, onAiImport, aiError }) {
             <StepBadge n={2} />
           </span>
           <div className="flex-1">
-            <p className="mb-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+            <p className="mb-1.5 text-[11px] text-[#8a857b] dark:text-slate-400">
               AI가 준 텍스트를 붙여넣으세요
             </p>
             <textarea
@@ -50,7 +50,7 @@ function AiImport({ aiText, onAiTextChange, onAiImport, aiError }) {
               rows={5}
               spellCheck={false}
               placeholder={'=== PATTERN ===\nNAME: ...\n\n=== FORWARD ===\n4L 4R 3 14 3 A 99 0.0 3.9 3.9 4950'}
-              className="w-full resize-y rounded-lg border border-slate-200 bg-white p-2.5 font-mono text-[10px] leading-snug text-slate-800 outline-none placeholder:text-slate-400 focus:border-blue-500 dark:border-white/10 dark:bg-slate-950/70 dark:text-slate-200 dark:placeholder:text-slate-600"
+              className="w-full resize-y rounded-lg border border-[#eee9e0] bg-[#faf8f4] p-2.5 font-mono text-[10px] leading-snug text-[#4b463e] outline-none placeholder:text-[#c2bbab] focus:border-[oklch(0.55_0.13_262)] dark:border-white/10 dark:bg-slate-950/70 dark:text-slate-200 dark:placeholder:text-slate-600"
             />
           </div>
         </div>
@@ -107,17 +107,17 @@ function PdfDrop({ onImportPdf, importing, importError }) {
         }}
         className={`flex w-full cursor-pointer flex-col items-center gap-1.5 rounded-lg border border-dashed px-4 py-5 text-center outline-none transition-colors ${
           drag
-            ? 'border-sky-500 bg-sky-50 dark:bg-sky-400/10'
-            : 'border-slate-300 bg-slate-50 hover:border-slate-400 focus:border-sky-500 dark:border-slate-600 dark:bg-white/[0.02] dark:hover:border-slate-500'
+            ? 'border-[oklch(0.55_0.13_262)] bg-[#f2f4ff] dark:bg-sky-400/10'
+            : 'border-[#ddd7cb] bg-[#faf8f4] hover:border-[#c9c2b4] focus:border-[oklch(0.55_0.13_262)] dark:border-slate-600 dark:bg-white/[0.02] dark:hover:border-slate-500'
         }`}
       >
-        <span className="text-slate-400 dark:text-slate-500">
+        <span className="text-[#bdb7ac] dark:text-slate-500">
           {importing ? <IconLoader size={22} /> : <IconFile size={22} />}
         </span>
-        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+        <span className="text-sm font-medium text-[#4b463e] dark:text-slate-200">
           {importing ? 'PDF 분석 중…' : 'PDF 패턴 시트 업로드'}
         </span>
-        <span className="text-[11px] text-slate-400 dark:text-slate-500">
+        <span className="text-[11px] text-[#a8a297] dark:text-slate-500">
           끌어다 놓거나 클릭하여 선택
         </span>
       </div>
@@ -175,8 +175,8 @@ export default function PatternTab({
                     올려 변환하세요.
                   </p>
                 )}
-                <details className="overflow-hidden rounded-md border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-black/30">
-                  <summary className="cursor-pointer px-3 py-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                <details className="overflow-hidden rounded-md border border-[#ece7dd] bg-[#faf8f4] dark:border-white/10 dark:bg-black/30">
+                  <summary className="cursor-pointer px-3 py-2 text-[11px] font-medium text-[#6b665c] dark:text-slate-300">
                     원본 시트 미리보기
                   </summary>
                   <img src={pageImage} alt="업로드한 패턴 시트" className="w-full" />
@@ -187,7 +187,7 @@ export default function PatternTab({
         </div>
 
         <div className="mt-5">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#bdb7ac] dark:text-slate-500">
             샘플 패턴
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -196,10 +196,10 @@ export default function PatternTab({
                 key={p.id}
                 type="button"
                 onClick={() => onLoadSample(p.id)}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all active:scale-[0.98] ${
+                className={`rounded-full px-3 py-1.5 text-xs transition-all active:scale-[0.98] ${
                   activeId === p.id
-                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25 dark:bg-sky-500'
-                    : 'border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600 dark:border-white/10 dark:bg-transparent dark:text-slate-300 dark:hover:border-sky-400/50'
+                    ? 'bg-[oklch(0.55_0.13_262)] font-semibold text-white shadow-[0_1px_4px_rgba(91,110,224,0.28)] dark:bg-sky-500'
+                    : 'border border-[#e6e1d8] bg-white font-medium text-[#6b665c] hover:border-[oklch(0.55_0.13_262)] hover:text-[oklch(0.5_0.13_262)] dark:border-white/10 dark:bg-transparent dark:text-slate-300 dark:hover:border-sky-400/50'
                 }`}
               >
                 {p.name}
@@ -215,23 +215,23 @@ export default function PatternTab({
 
         {savedPatterns && savedPatterns.length > 0 && (
           <div className="mt-5">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#bdb7ac] dark:text-slate-500">
               내 패턴
             </p>
             <div className="flex flex-col gap-1.5">
               {savedPatterns.map((p) => (
                 <div
                   key={p.id}
-                  className={`group flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${
+                  className={`group flex items-center gap-2 rounded-[10px] border px-2.5 py-1.5 text-xs transition-colors ${
                     activeId === p.id
-                      ? 'border-blue-400 bg-blue-50/70 dark:border-sky-400/50 dark:bg-sky-500/10'
-                      : 'border-slate-200 bg-white hover:border-blue-300 dark:border-white/10 dark:bg-transparent dark:hover:border-sky-400/40'
+                      ? 'border-[oklch(0.55_0.13_262)] bg-[#f2f4ff] dark:border-sky-400/50 dark:bg-sky-500/10'
+                      : 'border-[#e6e1d8] bg-white hover:border-[oklch(0.55_0.13_262)] dark:border-white/10 dark:bg-transparent dark:hover:border-sky-400/40'
                   }`}
                 >
                   <button
                     type="button"
                     onClick={() => onLoadSaved(p.id)}
-                    className="flex-1 truncate text-left font-medium text-slate-700 dark:text-slate-200"
+                    className="flex-1 truncate text-left font-medium text-[#4b463e] dark:text-slate-200"
                     title={p.name}
                   >
                     {p.name}
@@ -240,7 +240,7 @@ export default function PatternTab({
                     type="button"
                     onClick={() => onDeleteSaved(p.id)}
                     aria-label="삭제"
-                    className="shrink-0 rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-500 dark:text-slate-500 dark:hover:bg-rose-500/20 dark:hover:text-rose-300"
+                    className="shrink-0 rounded p-1 text-[#bdb7ac] hover:bg-rose-50 hover:text-rose-500 dark:text-slate-500 dark:hover:bg-rose-500/20 dark:hover:text-rose-300"
                   >
                     <IconX size={12} />
                   </button>
@@ -253,7 +253,7 @@ export default function PatternTab({
 
       <Section title="패턴 정보">
         <div className="mb-3 flex items-center justify-between">
-          <label className="text-xs text-slate-600 dark:text-slate-300" htmlFor="distance">
+          <label className="text-xs text-[#6b665c] dark:text-slate-300" htmlFor="distance">
             Oil Pattern Distance
           </label>
           <div className="flex items-center gap-1.5">
@@ -266,9 +266,9 @@ export default function PatternTab({
                 const v = e.target.value;
                 onDistanceChange(v === '' ? 0 : parseFloat(v) || 0);
               }}
-              className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-right font-mono text-sm tabular-nums text-slate-900 outline-none focus:border-blue-500 dark:border-white/10 dark:bg-slate-800 dark:text-sky-200"
+              className="w-16 rounded-lg border border-[#e6e1d8] bg-white px-2 py-1 text-right font-mono text-sm font-bold tabular-nums text-[#1c1b1a] outline-none focus:border-[oklch(0.55_0.13_262)] dark:border-white/10 dark:bg-slate-800 dark:text-sky-200"
             />
-            <span className="text-xs text-slate-500 dark:text-slate-400">ft</span>
+            <span className="text-xs text-[#a8a297] dark:text-slate-400">ft</span>
           </div>
         </div>
         <div className="grid grid-cols-3 gap-2">
@@ -277,7 +277,7 @@ export default function PatternTab({
           <Stat label="Reverse" value={totals.reverseMl.toFixed(1)} sub="mL" accent="#2563eb" />
         </div>
 
-        <p className="mb-2 mt-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
+        <p className="mb-2 mt-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#bdb7ac] dark:text-slate-500">
           시트 전체 값
         </p>
         <MetaList

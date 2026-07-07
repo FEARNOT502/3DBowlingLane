@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#0a0d12;font-family:'Space Grotesk',system-ui,sans-serif}
+  .mono{font-family:'Space Mono',monospace}
+  @keyframes spin360{to{transform:rotate(360deg)}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:radial-gradient(120% 90% at 50% -10%, #141b26 0%, #0a0d12 60%);color:#e7ecf2;padding:44px 40px 60px;box-sizing:border-box">
+  <!-- header -->
+  <div style="max-width:1180px;margin:0 auto 34px">
+    <div style="display:flex;align-items:center;gap:10px;font:700 11px 'Space Mono',monospace;letter-spacing:.18em;color:#4d9bff">
+      <span style="width:26px;height:26px;border-radius:7px;background:linear-gradient(140deg,#2563eb,#0ea5e9);display:inline-grid;place-items:center"><span style="width:4px;height:13px;background:#fff;border-radius:2px;transform:rotate(-8deg)"></span></span>
+      LANE OIL 3D · BALL COVERSTOCKS
+    </div>
+    <h1 style="font-size:30px;font-weight:600;letter-spacing:-.02em;margin:16px 0 8px;color:#fff">볼링공 모델 3종 — 파란 베이스</h1>
+    <p style="font-size:14px;line-height:1.6;color:#8a94a2;max-width:640px;margin:0">기존 3D 씬의 볼(<span class="mono" style="color:#aab4c2">FlareBall</span>)에 그대로 드롭인 되는 커버스톡 3종입니다. 실물처럼 광택·펄·플레이크·크랙 무늬를 각각 다르게 모델링했고, 그립 홀 3개는 현재 코드의 배치를 유지합니다.</p>
+  </div>
+
+  <!-- 3 ball cards -->
+  <div style="max-width:1180px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:22px">
+
+    <!-- A -->
+    <div style="background:linear-gradient(180deg,#131a24,#0e131b);border:1px solid #1e2630;border-radius:18px;overflow:hidden">
+      <div style="position:relative;aspect-ratio:1/1;background:radial-gradient(70% 70% at 50% 35%, #1a2431 0%, #0b0f16 78%)">
+        <canvas id="ballA" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+        <div class="mono" style="position:absolute;top:14px;left:16px;font-size:10px;font-weight:700;letter-spacing:.14em;color:#4d9bff">A</div>
+      </div>
+      <div style="padding:20px 20px 22px">
+        <div style="font-size:18px;font-weight:600;color:#fff">Cobalt Storm</div>
+        <div style="font-size:12px;color:#7c8695;margin-top:3px">코발트 스톰 · 펄 마블</div>
+        <p style="font-size:12.5px;line-height:1.6;color:#96a0ae;margin:12px 0 16px">로열블루·청록·화이트 펄이 휘몰아치는 하이글로스 마블. 레퍼런스에 가장 가까운 시그니처.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <span class="mono" style="font-size:10px;color:#aab4c2;background:#1a222e;border:1px solid #262f3b;border-radius:6px;padding:4px 8px">gloss ●●●</span>
+          <span class="mono" style="font-size:10px;color:#aab4c2;background:#1a222e;border:1px solid #262f3b;border-radius:6px;padding:4px 8px">pearl</span>
+          <span class="mono" style="font-size:10px;color:#aab4c2;background:#1a222e;border:1px solid #262f3b;border-radius:6px;padding:4px 8px">rough .12</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- B -->
+    <div style="background:linear-gradient(180deg,#131a24,#0e131b);border:1px solid #1e2630;border-radius:18px;overflow:hidden">
+      <div style="position:relative;aspect-ratio:1/1;background:radial-gradient(70% 70% at 50% 35%, #1a2431 0%, #0b0f16 78%)">
+        <canvas id="ballB" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+        <div class="mono" style="position:absolute;top:14px;left:16px;font-size:10px;font-weight:700;letter-spacing:.14em;color:#4d9bff">B</div>
+      </div>
+      <div style="padding:20px 20px 22px">
+        <div style="font-size:18px;font-weight:600;color:#fff">Midnight Flake</div>
+        <div style="font-size:12px;color:#7c8695;margin-top:3px">미드나잇 플레이크 · 솔리드</div>
+        <p style="font-size:12.5px;line-height:1.6;color:#96a0ae;margin:12px 0 16px">깊은 네이비 솔리드에 금속 플레이크가 반짝이는 새틴 우레탄. 묵직하고 진지한 무광 계열.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <span class="mono" style="font-size:10px;color:#aab4c2;background:#1a222e;border:1px solid #262f3b;border-radius:6px;padding:4px 8px">gloss ●●○</span>
+          <span class="mono" style="font-size:10px;color:#aab4c2;background:#1a222e;border:1px solid #262f3b;border-radius:6px;padding:4px 8px">flake</span>
+          <span class="mono" style="font-size:10px;color:#aab4c2;background:#1a222e;border:1px solid #262f3b;border-radius:6px;padding:4px 8px">rough .30</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- C -->
+    <div style="background:linear-gradient(180deg,#131a24,#0e131b);border:1px solid #1e2630;border-radius:18px;overflow:hidden">
+      <div style="position:relative;aspect-ratio:1/1;background:radial-gradient(70% 70% at 50% 35%, #1a2431 0%, #0b0f16 78%)">
+        <canvas id="ballC" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+        <div class="mono" style="position:absolute;top:14px;left:16px;font-size:10px;font-weight:700;letter-spacing:.14em;color:#4d9bff">C</div>
+      </div>
+      <div style="padding:20px 20px 22px">
+        <div style="font-size:18px;font-weight:600;color:#fff">Electric Ice</div>
+        <div style="font-size:12px;color:#7c8695;margin-top:3px">일렉트릭 아이스 · 크랙 펄</div>
+        <p style="font-size:12.5px;line-height:1.6;color:#96a0ae;margin:12px 0 16px">밝은 시안·코발트 위로 흰 얼음이 갈라진 초광택 펄. 가장 화려하고 차가운 인상.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <span class="mono" style="font-size:10px;color:#aab4c2;background:#1a222e;border:1px solid #262f3b;border-radius:6px;padding:4px 8px">gloss ●●●</span>
+          <span class="mono" style="font-size:10px;color:#aab4c2;background:#1a222e;border:1px solid #262f3b;border-radius:6px;padding:4px 8px">crackle</span>
+          <span class="mono" style="font-size:10px;color:#aab4c2;background:#1a222e;border:1px solid #262f3b;border-radius:6px;padding:4px 8px">rough .07</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- loading / status -->
+  <div id="ballStatus" style="max-width:1180px;margin:22px auto 0;font:12px 'Space Mono',monospace;color:#5a6472;display:flex;align-items:center;gap:10px">
+    <span style="width:14px;height:14px;border:2px solid #2a3340;border-top-color:#4d9bff;border-radius:50%;display:inline-block;animation:spin360 .8s linear infinite"></span>
+    3D 렌더 로딩 중…
+  </div>
+
+  <div style="max-width:1180px;margin:34px auto 0;padding:18px 20px;border:1px solid #1e2630;border-radius:14px;background:#0e131b;font-size:12.5px;line-height:1.7;color:#8a94a2">
+    <b style="color:#c3ccd6">클로드 코드 적용</b> — 이 3종은 <span class="mono" style="color:#aab4c2">ballDesigns.js</span> 한 파일 + 프롬프트로 정리해 다운로드 카드에 넣어드립니다. 기존 <span class="mono" style="color:#aab4c2">makeMarbleTexture()</span>를 대체하고 볼에 커버스톡 선택 prop을 추가하는 방식입니다.
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  componentDidMount() {
+    this._stop = false;
+    this._renderers = [];
+    this.init().catch((e) => {
+      console.error(e);
+      const s = document.getElementById('ballStatus');
+      if (s) s.textContent = '3D 로드 실패: ' + e.message;
+    });
+  }
+  componentWillUnmount() {
+    this._stop = true;
+    (this._renderers || []).forEach((r) => { try { r.dispose(); } catch (e) {} });
+  }
+
+  // ---- design configs (kept identical to the handoff ballDesigns.js) ----
+  designs() {
+    return {
+      A: {
+        base: ['#1e3a8a', '#1d4ed8', '#1e40af'],
+        veins: [
+          { color: 'rgba(45,212,191,0.55)', width: [8, 30], n: 9 },
+          { color: 'rgba(224,242,254,0.6)', width: [6, 26], n: 9 },
+          { color: 'rgba(96,165,250,0.4)', width: [4, 16], n: 7 },
+          { color: 'rgba(12,20,55,0.5)', width: [8, 28], n: 7 },
+        ],
+        mat: { roughness: 0.12, metalness: 0.35, clearcoat: 1, clearcoatRoughness: 0.08 },
+      },
+      B: {
+        base: ['#0f172a', '#172554', '#0f1e40'],
+        veins: [
+          { color: 'rgba(30,58,138,0.5)', width: [10, 34], n: 5 },
+          { color: 'rgba(37,99,235,0.3)', width: [6, 20], n: 4 },
+        ],
+        sparkle: { n: 1100, colors: ['#93c5fd', '#e0f2fe', '#60a5fa', '#bfdbfe'] },
+        mat: { roughness: 0.3, metalness: 0.6, clearcoat: 0.5, clearcoatRoughness: 0.22 },
+      },
+      C: {
+        base: ['#0ea5e9', '#2563eb', '#1e40af'],
+        veins: [
+          { color: 'rgba(255,255,255,0.85)', width: [2, 10], n: 13 },
+          { color: 'rgba(186,230,253,0.6)', width: [3, 12], n: 8 },
+          { color: 'rgba(3,105,161,0.45)', width: [6, 20], n: 6 },
+        ],
+        mat: { roughness: 0.07, metalness: 0.2, clearcoat: 1, clearcoatRoughness: 0.03 },
+      },
+    };
+  }
+
+  makeTexture(THREE, cfg, seed0) {
+    const W = 1024, H = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    let seed = seed0 || 20260705;
+    const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+
+    const base = ctx.createLinearGradient(0, 0, 0, H);
+    base.addColorStop(0, cfg.base[0]); base.addColorStop(0.5, cfg.base[1]); base.addColorStop(1, cfg.base[2]);
+    ctx.fillStyle = base; ctx.fillRect(0, 0, W, H);
+
+    for (const v of cfg.veins) {
+      for (let i = 0; i < v.n; i += 1) {
+        const x0 = rnd() * W, y0 = rnd() * H;
+        const segs = 3 + Math.floor(rnd() * 3);
+        const lw = v.width[0] + rnd() * (v.width[1] - v.width[0]);
+        for (const off of [0, -W, W]) {
+          ctx.beginPath(); ctx.moveTo(x0 + off, y0);
+          let px = x0, py = y0; const s0 = seed;
+          for (let s = 0; s < segs; s += 1) {
+            const cx = px + (rnd() - 0.5) * 340, cy = py + (rnd() - 0.5) * 240;
+            px += (rnd() - 0.5) * 420; py += (rnd() - 0.5) * 260;
+            ctx.quadraticCurveTo(cx + off, cy, px + off, py);
+          }
+          if (off !== W) seed = s0;
+          ctx.strokeStyle = v.color; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.stroke();
+        }
+      }
+    }
+    if (cfg.sparkle) {
+      for (let i = 0; i < cfg.sparkle.n; i += 1) {
+        const x = rnd() * W, y = rnd() * H, r = 0.4 + rnd() * 1.3;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = cfg.sparkle.colors[Math.floor(rnd() * cfg.sparkle.colors.length)];
+        ctx.globalAlpha = 0.5 + rnd() * 0.5; ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.anisotropy = 8;
+    return tex;
+  }
+
+  async init() {
+    const THREE = await import('https://unpkg.com/three@0.169.0/build/three.module.js');
+    if (this._stop) return;
+    const cfgs = this.designs();
+    const specs = [
+      { id: 'ballA', cfg: cfgs.A },
+      { id: 'ballB', cfg: cfgs.B },
+      { id: 'ballC', cfg: cfgs.C },
+    ];
+    const holesDir = [
+      { d: [0.14, 0.97, 0.2], r: 0.075 },
+      { d: [-0.14, 0.97, 0.2], r: 0.075 },
+      { d: [0, 0.78, -0.63], r: 0.1 },
+    ];
+
+    for (const sp of specs) {
+      const canvas = document.getElementById(sp.id);
+      if (!canvas) continue;
+      const w = canvas.clientWidth || 360, h = canvas.clientHeight || 360;
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      renderer.setSize(w, h, false);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.05;
+      this._renderers.push(renderer);
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(30, w / h, 0.1, 100);
+      camera.position.set(0, 0.15, 3.35);
+
+      // studio environment for glossy reflections
+      const env = this.makeEnv(THREE, renderer);
+      scene.environment = env;
+
+      // lights
+      scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+      const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(2.5, 3.5, 2.5); scene.add(key);
+      const fill = new THREE.DirectionalLight(0x9fc4ff, 0.7); fill.position.set(-3, 1, 1.5); scene.add(fill);
+      const rim = new THREE.DirectionalLight(0xbfe0ff, 1.1); rim.position.set(-1.5, 2, -3); scene.add(rim);
+
+      // ball
+      const group = new THREE.Group();
+      const tex = this.makeTexture(THREE, sp.cfg);
+      const mat = new THREE.MeshPhysicalMaterial({
+        map: tex, roughness: sp.cfg.mat.roughness, metalness: sp.cfg.mat.metalness,
+        clearcoat: sp.cfg.mat.clearcoat, clearcoatRoughness: sp.cfg.mat.clearcoatRoughness,
+        envMapIntensity: 1.15,
+      });
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 96), mat);
+      group.add(ball);
+
+      // grip holes (flat dark discs on the surface — matches current app)
+      const holeMat = new THREE.MeshStandardMaterial({ color: 0x0a1018, roughness: 0.5, metalness: 0 });
+      const Z = new THREE.Vector3(0, 0, 1);
+      for (const hh of holesDir) {
+        const dir = new THREE.Vector3(hh.d[0], hh.d[1], hh.d[2]).normalize();
+        const disc = new THREE.Mesh(new THREE.CircleGeometry(hh.r, 32), holeMat);
+        disc.position.copy(dir.clone().multiplyScalar(1.002));
+        disc.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(Z, dir));
+        group.add(disc);
+      }
+      // tilt so the grip faces up toward camera, then spin around lane axis
+      group.rotation.x = -0.5;
+      scene.add(group);
+
+      const spin = group;
+      const animate = () => {
+        if (this._stop) return;
+        spin.rotation.y += 0.006;
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+      };
+      animate();
+    }
+    const s = document.getElementById('ballStatus');
+    if (s) s.style.display = 'none';
+  }
+
+  makeEnv(THREE, renderer) {
+    // simple studio: dark surround with two soft bright bars (key + rim reflections)
+    const W = 512, H = 256;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#1b2430'); g.addColorStop(0.55, '#0c1119'); g.addColorStop(1, '#05070b');
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    // key softbox
+    let sb = x.createRadialGradient(W * 0.34, H * 0.28, 4, W * 0.34, H * 0.28, 90);
+    sb.addColorStop(0, 'rgba(255,255,255,0.95)'); sb.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = sb; x.fillRect(0, 0, W, H);
+    // cool rim
+    sb = x.createRadialGradient(W * 0.8, H * 0.4, 4, W * 0.8, H * 0.4, 70);
+    sb.addColorStop(0, 'rgba(150,200,255,0.6)'); sb.addColorStop(1, 'rgba(150,200,255,0)');
+    x.fillStyle = sb; x.fillRect(0, 0, W, H);
+    const tex = new THREE.CanvasTexture(c);
+    tex.mapping = THREE.EquirectangularReflectionMapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const rt = pmrem.fromEquirectangular(tex);
+    tex.dispose(); pmrem.dispose();
+    return rt.texture;
+  }
+
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -17,17 +17,17 @@ export const PANEL_TABS = [
 export function PanelTabBar({ tab, onTabChange, className = '' }) {
   return (
     <div
-      className={`flex gap-1 rounded-xl bg-slate-200/60 p-1 dark:bg-white/[0.06] ${className}`}
+      className={`flex gap-1 rounded-xl bg-[#f4f1eb] p-[5px] dark:bg-white/[0.06] ${className}`}
     >
       {PANEL_TABS.map((t) => (
         <button
           key={t.id}
           type="button"
           onClick={() => onTabChange(t.id)}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
+          className={`flex min-w-0 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-1 py-2 text-xs transition-all ${
             tab === t.id
-              ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-sky-300'
-              : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+              ? 'bg-white font-semibold text-[oklch(0.55_0.13_262)] shadow-[0_1px_3px_rgba(0,0,0,.06)] dark:bg-slate-700 dark:text-sky-300'
+              : 'font-medium text-[#a8a297] hover:text-[#6b665c] dark:text-slate-400 dark:hover:text-slate-200'
           }`}
         >
           <t.Icon size={13} />

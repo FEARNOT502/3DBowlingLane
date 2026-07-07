@@ -9,8 +9,8 @@ function Chip({ active, onClick, title, children, dot }) {
       aria-pressed={active}
       className={`flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold transition-all active:scale-95 ${
         active
-          ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25 dark:bg-sky-500'
-          : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-white/[0.06] dark:hover:text-slate-300'
+          ? 'bg-[oklch(0.55_0.13_262)] text-white shadow-[0_1px_4px_rgba(91,110,224,0.28)] dark:bg-sky-500'
+          : 'text-[#a8a297] hover:bg-[#f4f1eb] hover:text-[#6b665c] dark:text-slate-500 dark:hover:bg-white/[0.06] dark:hover:text-slate-300'
       }`}
     >
       {dot && (
@@ -25,7 +25,7 @@ function Chip({ active, onClick, title, children, dot }) {
 }
 
 function Divider() {
-  return <span className="mx-1 h-4 w-px shrink-0 bg-slate-200 dark:bg-white/10" />;
+  return <span className="mx-1 h-4 w-px shrink-0 bg-[#eae5db] dark:bg-white/10" />;
 }
 
 // Floating quick-access toolbar over the 3D canvas. Mirrors the most-used view
@@ -50,10 +50,10 @@ export default function Toolbar({ view, onViewChange }) {
   return (
     <div ref={rootRef} className="pointer-events-auto relative max-w-[calc(100vw-24px)]">
       {widthOpen && (
-        <div className="absolute bottom-full right-0 mb-2 w-56 rounded-xl border border-slate-200 bg-white p-3 shadow-xl shadow-slate-900/10 dark:border-white/10 dark:bg-slate-800">
-          <div className="mb-2 flex justify-between text-[11px] text-slate-500 dark:text-slate-300">
+        <div className="absolute bottom-full right-0 mb-2 w-56 rounded-xl border border-[#eae5db] bg-white p-3 shadow-[0_6px_22px_rgba(40,40,60,.1)] dark:border-white/10 dark:bg-slate-800">
+          <div className="mb-2 flex justify-between text-[11px] text-[#6b665c] dark:text-slate-300">
             <span>레인 폭 배율</span>
-            <span className="font-mono font-semibold tabular-nums text-blue-600 dark:text-sky-300">
+            <span className="font-mono font-semibold tabular-nums text-[oklch(0.55_0.13_262)] dark:text-sky-300">
               {view.widthScale.toFixed(1)}×
             </span>
           </div>
@@ -69,16 +69,16 @@ export default function Toolbar({ view, onViewChange }) {
               background: `linear-gradient(90deg, var(--slider-fill) ${widthPct}%, var(--slider-rest) ${widthPct}%)`,
             }}
           />
-          <div className="mt-1 flex justify-between text-[10px] text-slate-400 dark:text-slate-500">
+          <div className="mt-1 flex justify-between text-[10px] text-[#a8a297] dark:text-slate-500">
             <span>1× 실제</span>
             <span>5× 패턴표</span>
           </div>
         </div>
       )}
 
-      <div className="no-scrollbar flex items-center gap-0.5 overflow-x-auto rounded-xl border border-slate-200 bg-white/95 px-1 py-1 shadow-lg shadow-slate-900/[0.07] backdrop-blur-md dark:border-white/10 dark:bg-slate-900/90">
+      <div className="no-scrollbar flex items-center gap-0.5 overflow-x-auto rounded-[14px] border border-[#eae5db] bg-white/95 px-1.5 py-1.5 shadow-[0_6px_22px_rgba(40,40,60,.1)] backdrop-blur-md dark:border-white/10 dark:bg-slate-900/90">
         {/* oil display mode */}
-        <div className="flex shrink-0 rounded-lg bg-slate-100 p-0.5 dark:bg-white/[0.06]">
+        <div className="flex shrink-0 rounded-[9px] bg-[#f4f1eb] p-[3px] dark:bg-white/[0.06]">
           {[
             { id: 'sheet', label: '패턴표' },
             { id: 'realistic', label: '실제' },
@@ -87,10 +87,10 @@ export default function Toolbar({ view, onViewChange }) {
               key={m.id}
               type="button"
               onClick={() => onViewChange('oilMode', m.id)}
-              className={`whitespace-nowrap rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all ${
+              className={`whitespace-nowrap rounded-md px-2.5 py-1 text-[11px] transition-all ${
                 view.oilMode === m.id
-                  ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-600 dark:text-white'
-                  : 'text-slate-500 dark:text-slate-400'
+                  ? 'bg-white font-semibold text-[oklch(0.55_0.13_262)] shadow-[0_1px_3px_rgba(0,0,0,.06)] dark:bg-slate-600 dark:text-white'
+                  : 'font-medium text-[#a8a297] dark:text-slate-400'
               }`}
             >
               {m.label}
@@ -143,8 +143,8 @@ export default function Toolbar({ view, onViewChange }) {
           aria-expanded={widthOpen}
           className={`flex h-7 shrink-0 items-center gap-1 rounded-lg px-2.5 font-mono text-[11px] font-semibold tabular-nums transition-all ${
             widthOpen
-              ? 'bg-blue-600 text-white dark:bg-sky-500'
-              : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/[0.06]'
+              ? 'bg-[oklch(0.55_0.13_262)] text-white dark:bg-sky-500'
+              : 'text-[#8a857b] hover:bg-[#f4f1eb] dark:text-slate-400 dark:hover:bg-white/[0.06]'
           }`}
         >
           폭 {view.widthScale.toFixed(1)}×

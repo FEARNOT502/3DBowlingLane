@@ -59,7 +59,7 @@ function ThemeToggle({ theme, setTheme, className = '' }) {
       type="button"
       onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
       title={theme === 'dark' ? '라이트 모드' : '다크 모드'}
-      className={`grid h-9 w-9 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition-all hover:border-slate-400 active:scale-95 dark:border-white/10 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-white/30 ${className}`}
+      className={`grid h-[38px] w-[38px] place-items-center rounded-[10px] border border-[#e6e1d8] bg-white text-[#b8b2a7] transition-all hover:border-[oklch(0.55_0.13_262)] hover:text-[oklch(0.55_0.13_262)] active:scale-95 dark:border-white/10 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-white/30 dark:hover:text-slate-100 ${className}`}
     >
       {theme === 'dark' ? <IconSun size={15} /> : <IconMoon size={15} />}
     </button>
@@ -68,13 +68,13 @@ function ThemeToggle({ theme, setTheme, className = '' }) {
 
 function AppHeader({ theme, setTheme }) {
   return (
-    <div className="flex items-center gap-3 px-5 py-4">
-      <LogoMark size={34} className="shrink-0" />
+    <div className="flex shrink-0 items-center gap-3.5 border-b border-[#eeeae2] bg-white px-8 py-[18px] dark:border-white/10 dark:bg-slate-900">
+      <LogoMark size={36} className="shrink-0" />
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-[15px] font-bold leading-tight tracking-tight text-slate-900 dark:text-white">
+        <h1 className="truncate text-[18px] font-semibold leading-tight tracking-[-0.02em] text-[#1c1b1a] dark:text-white">
           Lane Oil Pattern 3D
         </h1>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400">오일 패턴 시각화 · 분석</p>
+        <p className="text-xs text-[#a29c92] dark:text-slate-400">오일 패턴 시각화 · 분석</p>
       </div>
       <ThemeToggle theme={theme} setTheme={setTheme} />
     </div>
@@ -493,23 +493,28 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-full w-full bg-[#f4f6fb] dark:bg-slate-950">
-      {/* Desktop sidebar */}
-      {isDesktop && (
-        <aside className="flex h-full w-[372px] shrink-0 flex-col border-r border-slate-200/80 bg-slate-50 dark:border-white/10 dark:bg-slate-950">
-          <div className="shrink-0">
-            <AppHeader theme={theme} setTheme={setTheme} />
-            <div className="px-4 pb-1">
+    <div className="flex h-full w-full flex-col bg-[#f6f4f0] dark:bg-slate-950">
+      {/* Desktop header — full-width bar above the sidebar/canvas split */}
+      {isDesktop && <AppHeader theme={theme} setTheme={setTheme} />}
+
+      <div className="flex min-h-0 min-w-0 flex-1">
+        {/* Desktop sidebar */}
+        {isDesktop && (
+          <aside className="flex h-full w-[340px] shrink-0 flex-col border-r border-[#eeeae2] bg-white dark:border-white/10 dark:bg-slate-950">
+            <div className="shrink-0 px-5 pt-5">
               <PanelTabBar tab={tab} onTabChange={onTabChange} />
             </div>
-          </div>
-          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
-            <ControlPanel tab={tab} {...panelProps} />
-          </div>
-        </aside>
-      )}
+            <div className="relative min-h-0 flex-1">
+              <div className="scroll-thin h-full overflow-y-auto">
+                <ControlPanel tab={tab} {...panelProps} />
+              </div>
+              {/* bottom scroll fade */}
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-9 bg-gradient-to-b from-white/0 to-white dark:from-slate-950/0 dark:to-slate-950" />
+            </div>
+          </aside>
+        )}
 
-      <main className="relative min-w-0 flex-1">
+        <main className="relative min-w-0 flex-1">
         <Scene
           theme={theme}
           cameraCmd={cameraCmd}
@@ -551,26 +556,26 @@ export default function App() {
         )}
 
         {/* Pattern summary card — compact infographic strip */}
-        <div className="pointer-events-none absolute left-4 top-4 max-w-[70vw] rounded-lg border border-slate-200 bg-white/90 px-4 py-2.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-900/80 lg:left-5 lg:top-5">
-          <div className="truncate text-[13px] font-bold tracking-tight text-slate-900 dark:text-white">
+        <div className="pointer-events-none absolute left-4 top-4 max-w-[70vw] rounded-[11px] border border-[#eae5db] bg-white/95 px-4 py-2.5 shadow-[0_3px_12px_rgba(40,40,60,.06)] backdrop-blur-md dark:border-white/10 dark:bg-slate-900/80 lg:left-5 lg:top-5">
+          <div className="truncate text-xs font-semibold tracking-tight text-[#1c1b1a] dark:text-white">
             {meta.name || '패턴'}
           </div>
           <div className="mt-1 flex items-baseline gap-3">
             <span className="flex items-baseline gap-1">
-              <span className="font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-sky-300">
+              <span className="font-mono text-sm font-semibold tabular-nums text-[#1c1b1a] dark:text-sky-300">
                 {meta.distance}
               </span>
-              <span className="text-[10px] text-slate-400 dark:text-slate-500">ft</span>
+              <span className="text-[10px] text-[#c2bbab] dark:text-slate-500">ft</span>
             </span>
-            <span className="h-3 w-px bg-slate-200 dark:bg-white/10" />
+            <span className="h-3 w-px bg-[#eae5db] dark:bg-white/10" />
             <span className="flex items-baseline gap-1">
-              <span className="font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-sky-300">
+              <span className="font-mono text-sm font-semibold tabular-nums text-[#1c1b1a] dark:text-sky-300">
                 {totals.combinedMl.toFixed(1)}
               </span>
-              <span className="text-[10px] text-slate-400 dark:text-slate-500">mL</span>
+              <span className="text-[10px] text-[#c2bbab] dark:text-slate-500">mL</span>
             </span>
           </div>
-          <div className="mt-1 hidden text-[10px] text-slate-400 dark:text-slate-500 sm:block">
+          <div className="mt-1 hidden text-[10px] text-[#bdb7ac] dark:text-slate-500 sm:block">
             드래그 회전 · 휠 줌 · 우클릭 이동
           </div>
         </div>
@@ -594,7 +599,7 @@ export default function App() {
                 type="button"
                 onClick={onTogglePlay}
                 title={playing ? '일시정지' : '재생'}
-                className="pointer-events-auto grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/30 transition-all hover:bg-blue-500 active:scale-95 dark:bg-sky-500 dark:hover:bg-sky-400"
+                className="pointer-events-auto grid h-[38px] w-[38px] shrink-0 place-items-center rounded-[14px] bg-[oklch(0.55_0.13_262)] text-white shadow-[0_6px_22px_rgba(40,40,60,.18)] transition-all hover:bg-[oklch(0.6_0.13_262)] active:scale-95 dark:bg-sky-500 dark:hover:bg-sky-400"
               >
                 {playing ? <IconPause size={15} /> : <IconPlay size={15} />}
               </button>
@@ -612,7 +617,8 @@ export default function App() {
             <ControlPanel tab={tab} {...panelProps} />
           </BottomSheet>
         )}
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

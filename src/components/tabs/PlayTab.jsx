@@ -40,7 +40,7 @@ function SimReadout({ sim }) {
       <Stat label="엔트리" value={sim.entryBoard.toFixed(1)} sub="보드" />
       <Stat label="진입각" value={sim.entryAngleDeg.toFixed(1)} sub="°" />
       <Stat
-        label="브레이크포인트"
+        label="BP"
         value={sim.breakpoint.board.toFixed(1)}
         sub={`보드 · ${sim.breakpoint.feet.toFixed(0)}ft`}
       />
@@ -52,8 +52,8 @@ function RecommendCard({ title, subtitle, rec, onApply }) {
   if (!rec) {
     return (
       <Card className="px-3 py-3">
-        <div className="text-xs font-bold text-slate-700 dark:text-slate-200">{title}</div>
-        <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+        <div className="text-xs font-bold text-[#4b463e] dark:text-slate-200">{title}</div>
+        <p className="mt-1 text-[11px] text-[#a8a297] dark:text-slate-500">
           이 구역에서는 포켓에 도달하는 라인을 찾지 못했습니다. 스피드·회전수·볼 스펙을 조정해 보세요.
         </p>
       </Card>
@@ -64,19 +64,19 @@ function RecommendCard({ title, subtitle, rec, onApply }) {
     <Card className="px-3 py-3">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{title}</span>
-          <span className="ml-1.5 text-[10px] text-slate-400 dark:text-slate-500">{subtitle}</span>
+          <span className="text-xs font-bold text-[#4b463e] dark:text-slate-100">{title}</span>
+          <span className="ml-1.5 text-[10px] text-[#a8a297] dark:text-slate-500">{subtitle}</span>
         </div>
         <VerdictBadge verdict={sim.verdict} />
       </div>
 
       <div className="mt-2 flex items-baseline gap-2">
-        <span className="font-mono text-xl font-bold tabular-nums text-blue-600 dark:text-sky-300">
+        <span className="font-mono text-xl font-bold tabular-nums text-[oklch(0.55_0.13_262)] dark:text-sky-300">
           {rec.laydownBoard}
-          <span className="mx-1 text-sm font-semibold text-slate-400 dark:text-slate-500">→</span>
+          <span className="mx-1 text-sm font-semibold text-[#a8a297] dark:text-slate-500">→</span>
           {rec.targetBoard}
         </span>
-        <span className="text-[10px] text-slate-400 dark:text-slate-500">스탠스 → 타겟(에로우) 보드</span>
+        <span className="text-[10px] text-[#a8a297] dark:text-slate-500">스탠스 → 타겟(에로우) 보드</span>
       </div>
 
       <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
@@ -85,16 +85,16 @@ function RecommendCard({ title, subtitle, rec, onApply }) {
           ['진입각', `${sim.entryAngleDeg.toFixed(1)}°`],
           ['BP', `${sim.breakpoint.board.toFixed(1)} @ ${sim.breakpoint.feet.toFixed(0)}ft`],
         ].map(([k, v]) => (
-          <div key={k} className="rounded-lg bg-white px-1 py-1.5 ring-1 ring-slate-200/70 dark:bg-white/[0.04] dark:ring-white/10">
-            <div className="text-[9px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">{k}</div>
-            <div className="font-mono text-[11px] font-semibold tabular-nums text-slate-800 dark:text-slate-200">{v}</div>
+          <div key={k} className="rounded-lg bg-white px-1 py-1.5 ring-1 ring-[#f0ebe1] dark:bg-white/[0.04] dark:ring-white/10">
+            <div className="text-[9px] font-semibold uppercase tracking-wide text-[#a8a297] dark:text-slate-500">{k}</div>
+            <div className="font-mono text-[11px] font-semibold tabular-nums text-[#4b463e] dark:text-slate-200">{v}</div>
           </div>
         ))}
       </div>
 
       <ul className="mt-2.5 space-y-1">
         {rec.reasons.map((r, i) => (
-          <li key={i} className="flex gap-1.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+          <li key={i} className="flex gap-1.5 text-[11px] leading-relaxed text-[#8a857b] dark:text-slate-400">
             <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-blue-400 dark:bg-sky-500" />
             {r}
           </li>
@@ -124,7 +124,7 @@ function ArsenalSection({ play, setups, onSaveSetup, onLoadSetup, onDeleteSetup 
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && save()}
           placeholder="셋업 이름 (예: 스톰 볼 · 윗장)"
-          className="min-w-0 flex-1 rounded-md bg-white px-2.5 py-1.5 text-xs text-slate-800 outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-400 dark:bg-slate-950/70 dark:text-slate-200 dark:ring-white/10"
+          className="min-w-0 flex-1 rounded-md bg-white px-2.5 py-1.5 text-xs text-[#4b463e] outline-none ring-1 ring-[#e6e1d8] focus:ring-2 focus:ring-[oklch(0.55_0.13_262)] dark:bg-slate-950/70 dark:text-slate-200 dark:ring-white/10"
         />
         <Button onClick={save}>저장</Button>
       </div>
@@ -133,11 +133,11 @@ function ArsenalSection({ play, setups, onSaveSetup, onLoadSetup, onDeleteSetup 
           {setups.map((s) => (
             <div
               key={s.id}
-              className="flex items-center gap-2 rounded-lg border border-slate-200/70 bg-slate-50/80 px-2.5 py-1.5 dark:border-white/10 dark:bg-white/[0.03]"
+              className="flex items-center gap-2 rounded-lg border border-[#ece7dd] bg-[#faf8f4] px-2.5 py-1.5 dark:border-white/10 dark:bg-white/[0.03]"
             >
               <button type="button" onClick={() => onLoadSetup(s.id)} className="min-w-0 flex-1 text-left">
-                <div className="truncate text-[12px] font-semibold text-slate-800 dark:text-slate-100">{s.name}</div>
-                <div className="truncate font-mono text-[9px] text-slate-400 dark:text-slate-500">
+                <div className="truncate text-[12px] font-semibold text-[#4b463e] dark:text-slate-100">{s.name}</div>
+                <div className="truncate font-mono text-[9px] text-[#a8a297] dark:text-slate-500">
                   {s.spec.hand} · {s.spec.speedKmh}km/h · {s.spec.revRpm}rpm · {s.line.laydownBoard}→{s.line.targetBoard}
                 </div>
               </button>
@@ -237,7 +237,7 @@ export default function PlayTab({
           />
         </div>
         <Disclosure summary={<>릴리스 축 · 볼 스펙</>}>
-          <p className="mb-1 text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
+          <p className="mb-1 text-[11px] leading-relaxed text-[#a8a297] dark:text-slate-500">
             축 회전↑ 훅 길이 증가 · 축 틸트↑ 플레어 감소·조기 롤 · RG↑ 스키드 길어짐 · Diff↑ 훅 증가 · PSA↑ 각지게 꺾임
           </p>
           <Slider
@@ -320,7 +320,7 @@ export default function PlayTab({
         <div className="mt-2">
           <SimReadout sim={sim} />
         </div>
-        <p className="mt-2 px-1 text-[11px] text-slate-400 dark:text-slate-500">
+        <p className="mt-2 px-1 text-[11px] text-[#a8a297] dark:text-slate-500">
           포켓 기준 {POCKET_BOWLER_BOARD}보드 · 진입 스피드 {sim.entrySpeedKmh.toFixed(1)} km/h · 이상적 진입각 4~6°
         </p>
 
@@ -330,7 +330,7 @@ export default function PlayTab({
 
         <div className="mt-2 space-y-1.5">
           <Toggle
-            label="3D 궤적 표시 (라인·마커만, 볼은 계속 재생)"
+            label="3D 궤적 라인·마커 표시"
             checked={play.showPath}
             onChange={(v) => onPlayChange('showPath', v)}
           />
@@ -339,7 +339,7 @@ export default function PlayTab({
             {playing ? '일시정지' : '재생'}
           </Button>
           <div className="flex items-center gap-2 px-1">
-            <span className="shrink-0 text-[11px] text-slate-500 dark:text-slate-400">재생 속도</span>
+            <span className="shrink-0 text-[11px] text-[#8a857b] dark:text-slate-400">재생 속도</span>
             <Segmented
               size="sm"
               className="flex-1"
@@ -354,7 +354,7 @@ export default function PlayTab({
             />
           </div>
           {/* Timeline scrubber: drag to inspect any point of the roll. */}
-          <div className="rounded-lg bg-slate-50/80 px-1 pb-1 pt-0.5 ring-1 ring-slate-200/70 dark:bg-white/[0.03] dark:ring-white/10">
+          <div className="rounded-lg bg-[#faf8f4] px-1 pb-1 pt-0.5 ring-1 ring-[#ece7dd] dark:bg-white/[0.03] dark:ring-white/10">
             <Slider
               label={scrubbing ? '타임라인 (스크럽 중)' : '타임라인'}
               value={scrubbing ? scrub : 0}
@@ -368,7 +368,7 @@ export default function PlayTab({
               <button
                 type="button"
                 onClick={() => onScrubChange(null)}
-                className="mx-1 mb-1 text-[11px] font-semibold text-blue-600 hover:underline dark:text-sky-300"
+                className="mx-1 mb-1 text-[11px] font-semibold text-[oklch(0.55_0.13_262)] hover:underline dark:text-sky-300"
               >
                 ▶ 라이브 재생으로 복귀
               </button>
@@ -384,7 +384,7 @@ export default function PlayTab({
             <button
               type="button"
               onClick={onResetTransition}
-              className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-slate-500 ring-1 ring-slate-200 transition-colors hover:text-rose-500 hover:ring-rose-200 dark:text-slate-400 dark:ring-white/10 dark:hover:text-rose-300"
+              className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-[#8a857b] ring-1 ring-[#e6e1d8] transition-colors hover:text-rose-500 hover:ring-rose-200 dark:text-slate-400 dark:ring-white/10 dark:hover:text-rose-300"
             >
               초기화
             </button>
@@ -401,7 +401,7 @@ export default function PlayTab({
           suffix=" 구"
           onChange={(v) => onShotsChange(v)}
         />
-        <p className="mt-1 px-1 text-[11px] text-slate-400 dark:text-slate-500">
+        <p className="mt-1 px-1 text-[11px] text-[#a8a297] dark:text-slate-500">
           {play.shots === 0
             ? '프레시(갓 깐 오일) 상태입니다. 샷 수를 올리면 그때의 라인이 트랙으로 고정됩니다.'
             : `${play.shots}구 진행 — 트랜지션은 처음 적용한 라인 기준으로 고정됩니다. 스팟을 옮겨도 오일 표시는 그대로이고, 볼 반응만 바뀝니다. 다른 라인으로 다시 깔려면 초기화하세요.`}

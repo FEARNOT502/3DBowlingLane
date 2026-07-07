@@ -17,8 +17,8 @@ export default function BallInspector({ sim, clockRef, theme = 'light', onClose,
   if (!sim || !sim.points || sim.points.length < 2) return null;
 
   return (
-    <div className={`pointer-events-auto absolute z-30 w-[156px] overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-slate-900/90 sm:w-[190px] ${className}`}>
-      <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2 dark:border-white/10">
+    <div className={`pointer-events-auto absolute z-30 w-[156px] overflow-hidden rounded-xl border border-[#eae5db] bg-white/95 shadow-[0_3px_12px_rgba(40,40,60,.06)] backdrop-blur-md dark:border-white/10 dark:bg-slate-900/90 sm:w-[190px] ${className}`}>
+      <div className="flex items-center justify-between gap-2 border-b border-[#f1ede6] px-3 py-2 dark:border-white/10">
         <div className="min-w-0">
           <div className="truncate text-[11px] font-bold text-slate-800 dark:text-white">볼 회전 · 트랙 플레어</div>
           <div className="text-[9px] text-slate-400 dark:text-slate-500">재생과 동기화</div>

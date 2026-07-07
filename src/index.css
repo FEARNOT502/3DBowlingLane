@@ -3,12 +3,12 @@
 @tailwind utilities;
 
 :root {
-  --app-bg: #f4f6fb;
-  --app-fg: #0f172a;
-  --scrollbar-thumb: #cbd5e1;
-  --scrollbar-thumb-hover: #94a3b8;
-  --slider-fill: #2563eb;
-  --slider-rest: #e2e8f0;
+  --app-bg: #f6f4f0;
+  --app-fg: #1c1b1a;
+  --scrollbar-thumb: #ddd7cb;
+  --scrollbar-thumb-hover: #c9c2b4;
+  --slider-fill: oklch(0.55 0.13 262);
+  --slider-rest: #e6e1d8;
 }
 .dark {
   --app-bg: #0b1220;

@@ -2,37 +2,36 @@ import React, { useState } from 'react';
 import { IconCopy, IconCheck, IconChevron } from './icons.jsx';
 
 // ---------------------------------------------------------------------------
-// Shared UI primitives — flat, typography-first "infographic" style.
-// Neutral surfaces + hairline borders; near-black primary actions; blue is
-// reserved for data (forward/reverse layers, slider fills, key numbers).
+// Shared UI primitives — "studio white" (1a): airy minimal, warm paper-white
+// surfaces, hairline borders, tiny caps section headers, cool indigo accent
+// oklch(0.55 0.13 262). Numbers stay monospace + tabular-nums.
 // Every surface pairs a light class with a `dark:` fallback.
 // ---------------------------------------------------------------------------
 
-// Each section is a floating white card on the panel's light-grey canvas —
-// the sidebar reads as a stack of cards rather than one long divided column.
+// Sections are plain groups on the white sidebar, separated by hairline rules —
+// the header is a tiny letterspaced caption, not a card title.
 export function Section({ title, children, hint, action }) {
   return (
-    <section className="mx-3 mt-3 rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm shadow-slate-200/60 dark:border-white/10 dark:bg-slate-900 dark:shadow-none sm:mx-4">
+    <section className="border-b border-[#f1ede6] px-5 py-5 last:border-b-0 dark:border-white/[0.06]">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="flex shrink-0 items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">
-          <span className="h-3.5 w-1 rounded-full bg-blue-500 dark:bg-sky-400" />
+        <h2 className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#bdb7ac] dark:text-slate-500">
           {title}
         </h2>
         {action}
       </div>
       {hint && (
-        <p className="mb-3 text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">{hint}</p>
+        <p className="mb-3 text-[11px] leading-relaxed text-[#a8a297] dark:text-slate-500">{hint}</p>
       )}
       {children}
     </section>
   );
 }
 
-// Inset panel used INSIDE a Section card — a soft grey well.
+// Bordered white panel used INSIDE a Section (AI import card, setup rows…).
 export function Card({ children, className = '' }) {
   return (
     <div
-      className={`rounded-xl border border-slate-200/70 bg-slate-50/80 dark:border-white/10 dark:bg-white/[0.03] ${className}`}
+      className={`rounded-xl border border-[#ece7dd] bg-white dark:border-white/10 dark:bg-white/[0.03] ${className}`}
     >
       {children}
     </div>
@@ -42,18 +41,18 @@ export function Card({ children, className = '' }) {
 export function Button({ children, onClick, variant = 'primary', disabled, className = '', type = 'button' }) {
   const styles = {
     primary:
-      'bg-blue-600 text-white shadow-sm shadow-blue-600/25 hover:bg-blue-500 active:scale-[0.99] dark:bg-sky-500 dark:shadow-none dark:hover:bg-sky-400',
+      'bg-[oklch(0.55_0.13_262)] text-white shadow-[0_1px_4px_rgba(91,110,224,0.28)] hover:bg-[oklch(0.6_0.13_262)] active:scale-[0.99] dark:bg-sky-500 dark:shadow-none dark:hover:bg-sky-400',
     soft:
-      'border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-blue-300 hover:text-blue-600 active:scale-[0.99] dark:border-white/15 dark:bg-transparent dark:text-slate-200 dark:shadow-none dark:hover:border-sky-400/50 dark:hover:text-sky-300',
+      'bg-[#f4f1eb] text-[oklch(0.5_0.13_262)] hover:bg-[#efeadf] active:scale-[0.99] dark:border dark:border-white/15 dark:bg-transparent dark:text-slate-200 dark:hover:border-sky-400/50 dark:hover:text-sky-300',
     ghost:
-      'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.06]',
+      'text-[#6b665c] hover:bg-[#f4f1eb] dark:text-slate-300 dark:hover:bg-white/[0.06]',
   };
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-md px-4 py-2 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-40 ${styles[variant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-40 ${styles[variant]} ${className}`}
     >
       {children}
     </button>
@@ -66,15 +65,15 @@ export function Toggle({ label, checked, onChange, color }) {
       type="button"
       onClick={() => onChange(!checked)}
       aria-pressed={checked}
-      className="group flex w-full cursor-pointer items-center justify-between rounded-md px-2 py-2 text-left transition-colors hover:bg-slate-50 dark:hover:bg-white/[0.04]"
+      className="group flex w-full cursor-pointer items-center justify-between rounded-md px-2 py-2 text-left transition-colors hover:bg-[#faf8f4] dark:hover:bg-white/[0.04]"
     >
-      <span className="flex items-center gap-2.5 text-[13px] text-slate-700 dark:text-slate-200">
+      <span className="flex items-center gap-2.5 text-[13px] text-[#4b463e] dark:text-slate-200">
         {color && <span className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: color }} />}
         {label}
       </span>
       <span
         className={`relative h-[18px] w-[34px] shrink-0 rounded-full transition-colors ${
-          checked ? 'bg-blue-600 dark:bg-sky-500' : 'bg-slate-300 dark:bg-slate-600'
+          checked ? 'bg-[oklch(0.55_0.13_262)] dark:bg-sky-500' : 'bg-[#d8d2c6] dark:bg-slate-600'
         }`}
       >
         <span
@@ -100,9 +99,9 @@ export function Slider({ label, value, min, max, step, onChange, fmt = (v) => v,
     : `linear-gradient(90deg, var(--slider-fill) ${pct}%, var(--slider-rest) ${pct}%)`;
   return (
     <div className="px-2 py-2">
-      <div className="mb-2 flex items-baseline justify-between text-xs text-slate-600 dark:text-slate-300">
+      <div className="mb-2 flex items-baseline justify-between text-xs text-[#6b665c] dark:text-slate-300">
         <span>{label}</span>
-        <span className="font-mono text-[13px] font-semibold tabular-nums text-blue-600 dark:text-sky-300">
+        <span className="font-mono text-[13px] font-semibold tabular-nums text-[oklch(0.55_0.13_262)] dark:text-sky-300">
           {fmt(value)}
           {suffix}
         </span>
@@ -121,21 +120,25 @@ export function Slider({ label, value, min, max, step, onChange, fmt = (v) => v,
   );
 }
 
-// Infographic stat tile: tiny caps label on top, large tabular number, muted unit.
+// Infographic stat tile: tiny caps label on top, large tabular number, muted
+// unit. `accent` colours a 2px top border + the label (values stay neutral).
 export function Stat({ label, value, sub, accent }) {
   return (
-    <div className="rounded-xl border border-slate-200/70 bg-slate-50/80 px-3 py-2.5 dark:border-white/10 dark:bg-white/[0.03]">
-      <div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
+    <div
+      className="min-w-0 rounded-[10px] border border-[#f0ebe1] bg-white px-2 py-2.5 dark:border-white/10 dark:bg-white/[0.03]"
+      style={accent ? { borderTop: `2px solid ${accent}` } : undefined}
+    >
+      <div
+        className="truncate text-[9px] font-semibold uppercase tracking-[0.08em] text-[#b3ada1] dark:text-slate-500"
+        style={accent ? { color: accent } : undefined}
+      >
         {label}
       </div>
-      <div className="mt-0.5 flex items-baseline gap-1">
-        <span
-          className="font-mono text-lg font-semibold leading-none tabular-nums text-slate-900 dark:text-white"
-          style={accent ? { color: accent } : undefined}
-        >
+      <div className="mt-1 flex items-baseline gap-0.5">
+        <span className="font-mono text-base font-bold leading-none tabular-nums text-[#1c1b1a] dark:text-white">
           {value}
         </span>
-        {sub && <span className="text-[10px] text-slate-400 dark:text-slate-500">{sub}</span>}
+        {sub && <span className="text-[10px] text-[#c2bbab] dark:text-slate-500">{sub}</span>}
       </div>
     </div>
   );
@@ -147,17 +150,17 @@ export function MetaList({ rows }) {
   const visible = rows.filter((r) => r.value != null && r.value !== '');
   if (!visible.length) return null;
   return (
-    <Card className="divide-y divide-slate-100 dark:divide-white/[0.06]">
+    <div className="divide-y divide-[#f4f0e8] dark:divide-white/[0.06]">
       {visible.map((r) => (
-        <div key={r.label} className="flex items-center justify-between gap-3 px-3 py-1.5">
-          <span className="text-[11px] text-slate-500 dark:text-slate-400">{r.label}</span>
-          <span className="text-right font-mono text-[11px] tabular-nums text-slate-900 dark:text-slate-200">
+        <div key={r.label} className="flex items-center justify-between gap-3 py-2">
+          <span className="text-xs text-[#8a857b] dark:text-slate-400">{r.label}</span>
+          <span className="text-right font-mono text-xs font-semibold tabular-nums text-[#1c1b1a] dark:text-slate-200">
             {r.value}
-            {r.suffix ? <span className="text-slate-400 dark:text-slate-500"> {r.suffix}</span> : null}
+            {r.suffix ? <span className="font-normal text-[#c2bbab] dark:text-slate-500"> {r.suffix}</span> : null}
           </span>
         </div>
       ))}
-    </Card>
+    </div>
   );
 }
 
@@ -196,17 +199,17 @@ export function Segmented({ options, value, onChange, size = 'md', className = '
   const pad = size === 'sm' ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1.5 text-xs';
   return (
     <div
-      className={`flex rounded-md border border-slate-200 bg-slate-100 p-0.5 dark:border-white/10 dark:bg-white/[0.06] ${className}`}
+      className={`flex rounded-lg bg-[#f4f1eb] p-[3px] dark:border dark:border-white/10 dark:bg-white/[0.06] ${className}`}
     >
       {options.map((o) => (
         <button
           key={o.id}
           type="button"
           onClick={() => onChange(o.id)}
-          className={`flex-1 whitespace-nowrap rounded-[5px] font-semibold transition-all ${pad} ${
+          className={`flex-1 whitespace-nowrap rounded-md transition-all ${pad} ${
             value === o.id
-              ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-white'
-              : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+              ? 'bg-white font-semibold text-[oklch(0.55_0.13_262)] shadow-[0_1px_3px_rgba(0,0,0,.06)] dark:bg-slate-700 dark:text-white'
+              : 'font-medium text-[#a8a297] hover:text-[#6b665c] dark:text-slate-400 dark:hover:text-slate-200'
           }`}
         >
           {o.label}
@@ -221,13 +224,13 @@ export function Disclosure({ summary, children, defaultOpen = false }) {
   return (
     <details
       open={defaultOpen}
-      className="group rounded-xl border border-slate-200/70 bg-slate-50/80 dark:border-white/10 dark:bg-white/[0.02]"
+      className="group rounded-[10px] border border-[#ece7dd] bg-white dark:border-white/10 dark:bg-white/[0.02]"
     >
-      <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+      <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 text-xs font-medium text-[#6b665c] dark:text-slate-300">
         <span className="flex items-center gap-2">{summary}</span>
         <IconChevron
           size={14}
-          className="text-slate-400 transition-transform group-open:rotate-180 dark:text-slate-500"
+          className="text-[#bdb7ac] transition-transform group-open:rotate-180 dark:text-slate-500"
         />
       </summary>
       <div className="px-3 pb-3">{children}</div>
